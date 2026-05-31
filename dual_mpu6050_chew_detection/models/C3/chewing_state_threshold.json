@@ -1,0 +1,5 @@
+{
+  "total_gyro_std_min": 0.15,
+  "max_axis_gyro_std_min": 0.115,
+  "total_acc_std_min": 0.02
+}
