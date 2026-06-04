@@ -84,6 +84,7 @@ S2 intervention state
 stability
 active music layers
 sound pan position from left (-1.00) to right (+1.00)
+PPB pause between bites state and elapsed seconds
 ```
 
 If you only want terminal output:
@@ -113,6 +114,14 @@ python python\s2_spatial_intervention.py --test-music-state normal --test-pan 0
 python python\s2_spatial_intervention.py --test-music-state normal --test-pan 1
 ```
 
+Test PPB one-shot cue sounds:
+
+```powershell
+python python\s2_spatial_intervention.py --test-ppb-cue pop
+python python\s2_spatial_intervention.py --test-ppb-cue ding
+python python\s2_spatial_intervention.py --test-ppb-cue error
+```
+
 Layer mapping:
 
 ```text
@@ -125,6 +134,23 @@ fast   -> background + drum
 Fast chewing uses the threshold `120 CPM`: in the latest 4 valid chewing intervals, if at least 2 instantaneous CPM values are above the threshold, S2 switches to `fast`.
 
 Pause uses a 5 second gap: only after 5 seconds without chewing will S2 switch to `pause` and silence the music layers.
+
+PPB intervention uses a 4 second target by default:
+
+```text
+PPB = next bite start time - current bite end time
+current bite end time is estimated from the latest valid chewing peak
+waiting pause -> pop cue once per second
+4 second target reached -> ding cue
+next bite before ding -> error cue
+```
+
+You can tune or disable PPB cues:
+
+```powershell
+python python\s2_spatial_intervention.py --port COM4 --ppb-threshold-seconds 4
+python python\s2_spatial_intervention.py --port COM4 --disable-ppb-cues
+```
 
 Stability uses the latest up to 5 valid intervals:
 

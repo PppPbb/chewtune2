@@ -21,6 +21,7 @@ DEFAULT_CPM_CALIBRATOR_PATH = PROJECT_ROOT / "models" / "cpm_calibrator.pkl"
 DEFAULT_THRESHOLD_PATH = PROJECT_ROOT / "models" / "chewing_state_threshold.json"
 
 LAYER_NAMES = ("drum", "background", "bass", "melody")
+CUE_NAMES = ("pop", "ding", "error")
 LAYER_EXTENSIONS = (".wav", ".mp3", ".ogg")
 STATE_LAYERS = {
     "pause": set(),
@@ -38,6 +39,8 @@ class MusicLayerPlayer:
         self.active_volume = active_volume
         self.inactive_volume = inactive_volume
         self.channels = {}
+        self.cue_sounds = {}
+        self.cue_channel = None
         self.enabled = False
         self.pan = 0.0
         self.active_layers = set()
@@ -64,6 +67,15 @@ class MusicLayerPlayer:
             self.channels[layer] = channel
             print(f"Loaded music layer: {layer} -> {path.name}")
 
+        self.cue_channel = pygame.mixer.Channel(len(LAYER_NAMES))
+        for cue in CUE_NAMES:
+            path = self.find_audio_file(cue)
+            if path is None:
+                print(f"PPB cue missing: {cue}. Put {cue}.wav/.mp3/.ogg in {self.music_dir}")
+                continue
+            self.cue_sounds[cue] = pygame.mixer.Sound(str(path))
+            print(f"Loaded PPB cue: {cue} -> {path.name}")
+
         self.enabled = bool(self.channels)
         if not self.enabled:
             print("No music layers were loaded. Detection will still run, but no audio will play.")
@@ -71,12 +83,15 @@ class MusicLayerPlayer:
             print(f"Loaded {len(self.channels)} music layer(s). Layers are looping at inactive volume until S2 activates them.")
 
     def find_layer_file(self, layer: str) -> Optional[Path]:
+        return self.find_audio_file(layer)
+
+    def find_audio_file(self, name: str) -> Optional[Path]:
         for ext in LAYER_EXTENSIONS:
-            direct = self.music_dir / f"{layer}{ext}"
+            direct = self.music_dir / f"{name}{ext}"
             if direct.exists():
                 return direct
         for path in self.music_dir.iterdir():
-            if path.is_file() and path.suffix.lower() in LAYER_EXTENSIONS and path.stem.lower().startswith(layer):
+            if path.is_file() and path.suffix.lower() in LAYER_EXTENSIONS and path.stem.lower().startswith(name):
                 return path
         return None
 
@@ -92,8 +107,16 @@ class MusicLayerPlayer:
     def set_pan(self, pan: float) -> None:
         self.set_active_layers(self.active_layers, pan)
 
+    def play_cue(self, cue: str) -> bool:
+        sound = self.cue_sounds.get(cue)
+        if sound is None or self.cue_channel is None:
+            print(f"PPB cue unavailable: {cue}")
+            return False
+        self.cue_channel.play(sound)
+        return True
+
     def stop(self) -> None:
-        if not self.channels:
+        if not self.channels and not self.cue_sounds:
             return
         try:
             import pygame
@@ -230,6 +253,151 @@ class SpatialPanState:
         return self.current_pan
 
 
+def find_peak_indices(signal: np.ndarray, fs: float, min_peak_distance_s: float) -> list[int]:
+    x = np.asarray(signal, dtype=float)
+    if x.size < 3:
+        return []
+    x = x - np.mean(x)
+    std = float(np.std(x))
+    if std <= 1e-9:
+        return []
+
+    min_distance = max(1, int(round(min_peak_distance_s * fs)))
+    threshold = 0.55 * std
+    peaks = []
+    last_peak = -min_distance
+    for idx in range(1, len(x) - 1):
+        if idx - last_peak < min_distance:
+            continue
+        if x[idx] > threshold and x[idx] >= x[idx - 1] and x[idx] > x[idx + 1]:
+            peaks.append(idx)
+            last_peak = idx
+    return peaks
+
+
+def choose_peak_channel(df, detection: dict) -> str:
+    channel = str(detection.get("channel", ""))
+    if channel and channel != "-" and channel in df.columns:
+        return channel
+
+    side = str(detection.get("side", ""))
+    if side == "left_chewing" and "l_gyro_mag" in df.columns:
+        return "l_gyro_mag"
+    if side == "right_chewing" and "r_gyro_mag" in df.columns:
+        return "r_gyro_mag"
+
+    if "l_gyro_mag" in df.columns and "r_gyro_mag" in df.columns:
+        left_std = float(np.std(df["l_gyro_mag"].to_numpy(dtype=float)))
+        right_std = float(np.std(df["r_gyro_mag"].to_numpy(dtype=float)))
+        return "l_gyro_mag" if left_std >= right_std else "r_gyro_mag"
+    return "l_gy" if "l_gy" in df.columns else "r_gy"
+
+
+def estimate_last_chew_peak_time_s(df, detection: dict, fs: float, args, start_time_ms: float) -> Optional[float]:
+    if detection.get("state") != "chewing" or float(detection.get("cpm", 0.0)) <= 0.0:
+        return None
+    channel = choose_peak_channel(df, detection)
+    if channel not in df.columns:
+        return None
+    peaks = find_peak_indices(df[channel].to_numpy(dtype=float), fs, args.counter_min_peak_distance)
+    if not peaks:
+        return None
+    peak_time_ms = float(df["time_ms"].iloc[peaks[-1]])
+    return (peak_time_ms - float(start_time_ms)) / 1000.0
+
+
+class PPBState:
+    def __init__(self, threshold_seconds: float, cues_enabled: bool) -> None:
+        self.threshold_seconds = threshold_seconds
+        self.cues_enabled = cues_enabled
+        self.last_detection_state = "non_chewing"
+        self.last_chew_peak_time_s: Optional[float] = None
+        self.pause_start_s: Optional[float] = None
+        self.pop_marks_played = set()
+        self.ding_played = False
+        self.short_warning_played = False
+        self.last_short_ppb_s: Optional[float] = None
+
+    def update(
+        self,
+        detection: dict,
+        df,
+        fs: float,
+        args,
+        start_time_ms: float,
+        elapsed_s: float,
+        player: MusicLayerPlayer,
+    ) -> dict:
+        state = str(detection.get("state", "non_chewing"))
+        was_chewing = self.last_detection_state == "chewing"
+        is_chewing = state == "chewing"
+
+        peak_time_s = estimate_last_chew_peak_time_s(df, detection, fs, args, start_time_ms)
+        if peak_time_s is not None:
+            self.last_chew_peak_time_s = peak_time_s
+
+        cue = "-"
+        if is_chewing:
+            if self.pause_start_s is not None and not self.ding_played:
+                ppb_elapsed = max(0.0, elapsed_s - self.pause_start_s)
+                self.last_short_ppb_s = ppb_elapsed
+                if self.cues_enabled and not self.short_warning_played:
+                    player.play_cue("error")
+                    cue = "error"
+                self.short_warning_played = True
+                ppb_state = "too_short"
+            else:
+                ppb_elapsed = 0.0
+                ppb_state = "idle"
+            self.reset_pause()
+        else:
+            if was_chewing and self.last_chew_peak_time_s is not None:
+                self.pause_start_s = self.last_chew_peak_time_s
+                self.pop_marks_played.clear()
+                self.ding_played = False
+                self.short_warning_played = False
+
+            if self.pause_start_s is None:
+                ppb_elapsed = 0.0
+                ppb_state = "idle"
+            else:
+                ppb_elapsed = max(0.0, elapsed_s - self.pause_start_s)
+                if ppb_elapsed >= self.threshold_seconds:
+                    ppb_state = "ready"
+                    if not self.ding_played:
+                        if self.cues_enabled:
+                            player.play_cue("ding")
+                            cue = "ding"
+                        self.ding_played = True
+                else:
+                    ppb_state = "waiting"
+                    for mark in range(1, int(self.threshold_seconds)):
+                        if ppb_elapsed >= mark and mark not in self.pop_marks_played:
+                            if self.cues_enabled:
+                                player.play_cue("pop")
+                                cue = "pop"
+                            self.pop_marks_played.add(mark)
+                            break
+
+        self.last_detection_state = state
+        return {
+            "ppb_state": ppb_state,
+            "ppb_elapsed": ppb_elapsed,
+            "ppb_ready": self.ding_played,
+            "ppb_short": ppb_state == "too_short",
+            "last_short_ppb": self.last_short_ppb_s,
+            "pause_start_s": self.pause_start_s,
+            "last_chew_peak_time_s": self.last_chew_peak_time_s,
+            "cue": cue,
+        }
+
+    def reset_pause(self) -> None:
+        self.pause_start_s = None
+        self.pop_marks_played.clear()
+        self.ding_played = False
+        self.short_warning_played = False
+
+
 def stereo_gains(pan: float) -> tuple[float, float]:
     pan = float(np.clip(pan, -1.0, 1.0))
     if pan < 0.0:
@@ -325,6 +493,7 @@ def run_terminal_loop(
     player: MusicLayerPlayer,
     intervention: InterventionState,
     spatial: SpatialPanState,
+    ppb: PPBState,
 ) -> None:
     window_samples = int(round(args.window_seconds * fs))
     buffer = deque(maxlen=window_samples)
@@ -356,6 +525,11 @@ def run_terminal_loop(
         df = c3.build_window_dataframe(buffer)
         detection = detect_c3_window(df, fs, detection_args, side_model, cpm_calibrator, threshold_gate)
         intervention_result = intervention.update(detection, now_s, args.update_seconds)
+        ppb_result = ppb.update(detection, df, fs, args, start_time_ms, elapsed_s, player)
+        if detection["state"] != "chewing":
+            intervention_result = dict(intervention_result)
+            intervention_result["intervention_state"] = "pause"
+            intervention_result["active_layers"] = set()
         spatial.update_from_detection(detection, now_s)
         pan = spatial.tick(now_s)
         player.set_active_layers(intervention_result["active_layers"], pan)
@@ -367,7 +541,9 @@ def run_terminal_loop(
             f"S2={intervention_result['intervention_state']:6s} "
             f"layers={format_layers(intervention_result['active_layers'])} "
             f"pan={pan:+.2f} target={spatial.target_pan:+.2f} "
-            f"L/R chews={spatial.left_events}/{spatial.right_events}"
+            f"L/R chews={spatial.left_events}/{spatial.right_events} "
+            f"PPB={float(ppb_result['ppb_elapsed']):4.1f}s "
+            f"ppb_state={ppb_result['ppb_state']:9s} cue={ppb_result['cue']}"
         )
 
 
@@ -382,6 +558,7 @@ def run_visual_loop(
     player: MusicLayerPlayer,
     intervention: InterventionState,
     spatial: SpatialPanState,
+    ppb: PPBState,
 ) -> None:
     window_samples = int(round(args.window_seconds * fs))
     plot_samples = max(window_samples, int(round(args.plot_window_seconds * fs)))
@@ -413,6 +590,13 @@ def run_visual_loop(
             "stability": 0.0,
             "recent_gap": float("inf"),
             "active_layers": set(),
+        },
+        "ppb": {
+            "ppb_state": "idle",
+            "ppb_elapsed": 0.0,
+            "ppb_ready": False,
+            "ppb_short": False,
+            "cue": "-",
         },
         "pan": 0.0,
         "target_pan": 0.0,
@@ -501,11 +685,17 @@ def run_visual_loop(
             df = c3.build_window_dataframe(buffer)
             detection = detect_c3_window(df, fs, detection_args, side_model, cpm_calibrator, threshold_gate)
             intervention_result = intervention.update(detection, now_s, args.update_seconds)
+            ppb_result = ppb.update(detection, df, fs, args, float(runtime["start_time_ms"]), elapsed_s, player)
+            if detection["state"] != "chewing":
+                intervention_result = dict(intervention_result)
+                intervention_result["intervention_state"] = "pause"
+                intervention_result["active_layers"] = set()
             spatial.update_from_detection(detection, now_s)
             pan = spatial.tick(now_s)
             player.set_active_layers(intervention_result["active_layers"], pan)
             runtime["detection"] = detection
             runtime["intervention"] = intervention_result
+            runtime["ppb"] = ppb_result
             runtime["pan"] = pan
             runtime["target_pan"] = spatial.target_pan
 
@@ -523,7 +713,9 @@ def run_visual_loop(
                 f"S2={intervention_result['intervention_state']:6s} "
                 f"layers={format_layers(intervention_result['active_layers'])} "
                 f"pan={pan:+.2f} target={spatial.target_pan:+.2f} "
-                f"L/R chews={spatial.left_events}/{spatial.right_events}"
+                f"L/R chews={spatial.left_events}/{spatial.right_events} "
+                f"PPB={float(ppb_result['ppb_elapsed']):4.1f}s "
+                f"ppb_state={ppb_result['ppb_state']:9s} cue={ppb_result['cue']}"
             )
 
         if not t_data:
@@ -531,6 +723,7 @@ def run_visual_loop(
 
         detection = runtime["detection"]
         intervention_result = runtime["intervention"]
+        ppb_result = runtime["ppb"]
         cpm_line.set_data(event_times, cpm_values)
         stability_line.set_data(event_times, stability_values)
         pan_line.set_data(event_times, pan_values)
@@ -556,6 +749,7 @@ def run_visual_loop(
         status_text_3.set_text(
             f"Pan: {float(runtime['pan']):+.2f} target {float(runtime['target_pan']):+.2f} | "
             f"L/R chews: {spatial.left_events}/{spatial.right_events} | "
+            f"PPB: {float(ppb_result['ppb_elapsed']):.1f}s {ppb_result['ppb_state']} | "
             f"Model side: {detection.get('model_side', '-')} ({float(detection.get('model_prob', 0.0)):.2f}) | "
             f"threshold score: {float(detection.get('threshold_score', 0.0)):.2f}"
         )
@@ -592,6 +786,7 @@ def main() -> None:
     parser.add_argument("--active-volume", type=float, default=0.9)
     parser.add_argument("--inactive-volume", type=float, default=0.0)
     parser.add_argument("--test-music-state", choices=sorted(STATE_LAYERS.keys()))
+    parser.add_argument("--test-ppb-cue", choices=CUE_NAMES)
     parser.add_argument("--test-music-seconds", type=float, default=8.0)
     parser.add_argument("--test-pan", type=float, default=0.0)
     parser.add_argument("--no-gui", action="store_true")
@@ -600,6 +795,8 @@ def main() -> None:
     parser.add_argument("--pause-seconds", type=float, default=5.0)
     parser.add_argument("--pan-step", type=float, default=1.0 / 30.0)
     parser.add_argument("--pan-smooth-rate", type=float, default=2.2)
+    parser.add_argument("--ppb-threshold-seconds", type=float, default=4.0)
+    parser.add_argument("--disable-ppb-cues", action="store_true")
     args = parser.parse_args()
 
     fs = args.sample_rate
@@ -620,6 +817,15 @@ def main() -> None:
 
     player = MusicLayerPlayer(args.music_dir, args.active_volume, args.inactive_volume)
     player.start()
+    if args.test_ppb_cue:
+        print(f"Testing PPB cue={args.test_ppb_cue}, duration={args.test_music_seconds:.1f}s")
+        try:
+            player.play_cue(args.test_ppb_cue)
+            time.sleep(max(0.1, args.test_music_seconds))
+        finally:
+            player.stop()
+        return
+
     if args.test_music_state:
         active_layers = STATE_LAYERS[args.test_music_state]
         player.set_active_layers(active_layers, args.test_pan)
@@ -647,16 +853,22 @@ def main() -> None:
         step=args.pan_step,
         smooth_rate=args.pan_smooth_rate,
     )
+    ppb = PPBState(
+        threshold_seconds=args.ppb_threshold_seconds,
+        cues_enabled=not args.disable_ppb_cues,
+    )
     ser = c3.open_serial_port(args.port, args.baud)
 
     try:
         if args.no_gui:
             run_terminal_loop(
-                ser, args, fs, detection_args, side_model, cpm_calibrator, threshold_gate, player, intervention, spatial
+                ser, args, fs, detection_args, side_model, cpm_calibrator, threshold_gate,
+                player, intervention, spatial, ppb
             )
         else:
             run_visual_loop(
-                ser, args, fs, detection_args, side_model, cpm_calibrator, threshold_gate, player, intervention, spatial
+                ser, args, fs, detection_args, side_model, cpm_calibrator, threshold_gate,
+                player, intervention, spatial, ppb
             )
     except KeyboardInterrupt:
         print("Stopping S2.")

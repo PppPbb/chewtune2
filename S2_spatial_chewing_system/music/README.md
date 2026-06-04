@@ -9,3 +9,11 @@ Expected layer names:
 
 The muffled background sound in the flowchart should be named `background`.
 All loaded layers are played in a continuous loop; S2 switches layers by changing volume and applies stereo pan.
+
+PPB one-shot cue names:
+
+- `pop.wav`, `pop.mp3`, or `pop.ogg`
+- `ding.wav`, `ding.mp3`, or `ding.ogg`
+- `error.wav`, `error.mp3`, or `error.ogg`
+
+PPB cues are played once on a separate mixer channel and do not loop with the music layers.
