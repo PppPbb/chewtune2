@@ -307,11 +307,14 @@ def estimate_last_chew_peak_time_s(df, detection: dict, fs: float, args, start_t
 
 
 class PPBState:
-    def __init__(self, threshold_seconds: float, cues_enabled: bool) -> None:
+    def __init__(self, threshold_seconds: float, end_debounce_seconds: float, cues_enabled: bool) -> None:
         self.threshold_seconds = threshold_seconds
+        self.end_debounce_seconds = end_debounce_seconds
         self.cues_enabled = cues_enabled
         self.last_detection_state = "non_chewing"
         self.last_chew_peak_time_s: Optional[float] = None
+        self.candidate_pause_start_s: Optional[float] = None
+        self.candidate_non_chewing_start_s: Optional[float] = None
         self.pause_start_s: Optional[float] = None
         self.pop_marks_played = set()
         self.ding_played = False
@@ -338,6 +341,8 @@ class PPBState:
 
         cue = "-"
         if is_chewing:
+            self.candidate_pause_start_s = None
+            self.candidate_non_chewing_start_s = None
             if self.pause_start_s is not None and not self.ding_played:
                 ppb_elapsed = max(0.0, elapsed_s - self.pause_start_s)
                 self.last_short_ppb_s = ppb_elapsed
@@ -351,15 +356,25 @@ class PPBState:
                 ppb_state = "idle"
             self.reset_pause()
         else:
-            if was_chewing and self.last_chew_peak_time_s is not None:
-                self.pause_start_s = self.last_chew_peak_time_s
+            if was_chewing:
+                self.candidate_non_chewing_start_s = elapsed_s
+                self.candidate_pause_start_s = self.last_chew_peak_time_s or elapsed_s
+
+            if (
+                self.pause_start_s is None
+                and self.candidate_non_chewing_start_s is not None
+                and elapsed_s - self.candidate_non_chewing_start_s >= self.end_debounce_seconds
+            ):
+                self.pause_start_s = self.candidate_pause_start_s or self.candidate_non_chewing_start_s
+                self.candidate_pause_start_s = None
+                self.candidate_non_chewing_start_s = None
                 self.pop_marks_played.clear()
                 self.ding_played = False
                 self.short_warning_played = False
 
             if self.pause_start_s is None:
                 ppb_elapsed = 0.0
-                ppb_state = "idle"
+                ppb_state = "debouncing" if self.candidate_non_chewing_start_s is not None else "idle"
             else:
                 ppb_elapsed = max(0.0, elapsed_s - self.pause_start_s)
                 if ppb_elapsed >= self.threshold_seconds:
@@ -387,11 +402,14 @@ class PPBState:
             "ppb_short": ppb_state == "too_short",
             "last_short_ppb": self.last_short_ppb_s,
             "pause_start_s": self.pause_start_s,
+            "candidate_non_chewing_start_s": self.candidate_non_chewing_start_s,
             "last_chew_peak_time_s": self.last_chew_peak_time_s,
             "cue": cue,
         }
 
     def reset_pause(self) -> None:
+        self.candidate_pause_start_s = None
+        self.candidate_non_chewing_start_s = None
         self.pause_start_s = None
         self.pop_marks_played.clear()
         self.ding_played = False
@@ -796,6 +814,7 @@ def main() -> None:
     parser.add_argument("--pan-step", type=float, default=1.0 / 30.0)
     parser.add_argument("--pan-smooth-rate", type=float, default=2.2)
     parser.add_argument("--ppb-threshold-seconds", type=float, default=4.0)
+    parser.add_argument("--ppb-end-debounce-seconds", type=float, default=1.5)
     parser.add_argument("--disable-ppb-cues", action="store_true")
     args = parser.parse_args()
 
@@ -855,6 +874,7 @@ def main() -> None:
     )
     ppb = PPBState(
         threshold_seconds=args.ppb_threshold_seconds,
+        end_debounce_seconds=args.ppb_end_debounce_seconds,
         cues_enabled=not args.disable_ppb_cues,
     )
     ser = c3.open_serial_port(args.port, args.baud)
