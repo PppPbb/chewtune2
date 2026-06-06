@@ -72,6 +72,53 @@ cd C:\Users\YUN\Desktop\chewtune\chewtune2\S2_spatial_chewing_system
 python python\s2_spatial_intervention.py --port COM4
 ```
 
+## BLE UI Bridge
+
+The dual MPU6050 firmware also advertises a BLE GATT server named:
+
+```text
+ChewTune-S2
+```
+
+BLE UUIDs:
+
+```text
+Service: 7b100001-7c6a-4d91-a461-9c987d97b100
+Notify:  7b100002-7c6a-4d91-a461-9c987d97b100
+```
+
+Use nRF Connect on a phone to verify:
+
+```text
+1. Upload the dual MPU6050 firmware and keep the board connected to the computer.
+2. Scan for and connect to ChewTune-S2.
+3. Open the custom service and enable notifications on the Notify characteristic.
+4. Confirm that H,<milliseconds> heartbeat messages arrive once per second.
+5. Run s2_spatial_intervention.py and confirm that U,... UI summary messages arrive.
+```
+
+UI summary protocol:
+
+```text
+U,<chewing>,<cpm>,<side>,<stability_percent>,<ppb_tenths>,<ppb_state>
+
+Example:
+U,1,108,L,72,26,W
+```
+
+Codes:
+
+```text
+side: L=left, R=right, B=both/unknown, -=none
+ppb_state: I=idle, W=waiting, R=ready, T=too_short
+```
+
+Disable computer-to-BLE UI summaries if needed:
+
+```powershell
+python python\s2_spatial_intervention.py --port COM4 --disable-ble-ui
+```
+
 This opens a visual interface showing:
 
 ```text

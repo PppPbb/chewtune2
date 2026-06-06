@@ -1,0 +1,79 @@
+<view class="page">
+  <view class="header">
+    <view>
+      <text class="eyebrow">CHEWTUNE BLE PROBE</text>
+      <text class="title">实时信号验证</text>
+    </view>
+    <view class="status status-{{statusTone}}">
+      <view class="status-dot"></view>
+      <text>{{status}}</text>
+    </view>
+  </view>
+
+  <view class="toolbar">
+    <button class="primary" loading="{{busy}}" disabled="{{busy}}" bindtap="startConnection">
+      搜索并连接
+    </button>
+    <button class="secondary" disabled="{{!deviceId}}" bindtap="disconnect">断开</button>
+  </view>
+
+  <view class="summary">
+    <view class="summary-item">
+      <text class="summary-label">Notify 数量</text>
+      <text class="summary-value">{{messageCount}}</text>
+    </view>
+    <view class="summary-item">
+      <text class="summary-label">最新心跳</text>
+      <text class="summary-value compact">{{heartbeat}}</text>
+    </view>
+  </view>
+
+  <view class="section-heading">
+    <text class="section-title">UI 摘要</text>
+    <text class="section-note">运行电脑端 S2 后更新</text>
+  </view>
+
+  <view class="metrics">
+    <view class="metric">
+      <text class="metric-label">检测状态</text>
+      <text class="metric-value">{{metrics.chewing ? '咀嚼中' : '未咀嚼'}}</text>
+    </view>
+    <view class="metric">
+      <text class="metric-label">咀嚼频率</text>
+      <view><text class="metric-value">{{metrics.cpm}}</text><text class="unit"> CPM</text></view>
+    </view>
+    <view class="metric">
+      <text class="metric-label">咀嚼侧</text>
+      <text class="metric-value">{{metrics.side}}</text>
+    </view>
+    <view class="metric">
+      <text class="metric-label">稳定性</text>
+      <view><text class="metric-value">{{metrics.stability}}</text><text class="unit">%</text></view>
+    </view>
+    <view class="metric wide">
+      <text class="metric-label">PPB 停顿</text>
+      <view class="ppb-row">
+        <view><text class="metric-value">{{metrics.ppb}}</text><text class="unit"> s</text></view>
+        <text class="ppb-state">{{metrics.ppbState}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section-heading logs-heading">
+    <view>
+      <text class="section-title">原始 Notify 日志</text>
+      <text class="last-message">{{lastMessage}}</text>
+    </view>
+    <button class="clear" bindtap="clearLogs">清空</button>
+  </view>
+
+  <view class="logs">
+    <view class="log-row" wx:for="{{logs}}" wx:key="index">
+      <text class="log-time">{{item.time}}</text>
+      <text class="log-message">{{item.message}}</text>
+    </view>
+    <view class="empty" wx:if="{{logs.length === 0}}">
+      开启 Notify 后，心跳与 UI 摘要会显示在这里。
+    </view>
+  </view>
+</view>

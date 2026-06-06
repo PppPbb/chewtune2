@@ -1,5 +1,9 @@
 #include <Arduino.h>
 #include <Wire.h>
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
 
 // XIAO ESP32S3 + two GY-521 / MPU6050 modules on one I2C bus.
 //
@@ -19,6 +23,10 @@
 #define RIGHT_MPU_ADDR 0x69
 #define USB_BAUD 115200
 
+#define BLE_DEVICE_NAME "ChewTune-S2"
+#define BLE_SERVICE_UUID "7b100001-7c6a-4d91-a461-9c987d97b100"
+#define BLE_UI_DATA_UUID "7b100002-7c6a-4d91-a461-9c987d97b100"
+
 #define REG_SMPLRT_DIV 0x19
 #define REG_CONFIG 0x1A
 #define REG_GYRO_CONFIG 0x1B
@@ -29,6 +37,14 @@
 
 const unsigned long SAMPLE_INTERVAL_US = 10000;  // 100 Hz
 unsigned long lastSampleUs = 0;
+unsigned long lastHeartbeatMs = 0;
+
+BLEServer *bleServer = nullptr;
+BLECharacteristic *uiDataCharacteristic = nullptr;
+bool phoneConnected = false;
+
+char computerMessage[96];
+size_t computerMessageLength = 0;
 
 struct ImuSample {
   float ax;
@@ -38,6 +54,89 @@ struct ImuSample {
   float gy;
   float gz;
 };
+
+class ServerCallbacks : public BLEServerCallbacks {
+  void onConnect(BLEServer *server) override {
+    phoneConnected = true;
+    Serial.println("BLE: Phone connected");
+  }
+
+  void onDisconnect(BLEServer *server) override {
+    phoneConnected = false;
+    Serial.println("BLE: Phone disconnected");
+    delay(100);
+    server->startAdvertising();
+  }
+};
+
+void notifyPhone(const char *message) {
+  if (!phoneConnected || uiDataCharacteristic == nullptr) {
+    return;
+  }
+
+  uiDataCharacteristic->setValue((uint8_t *)message, strlen(message));
+  uiDataCharacteristic->notify();
+}
+
+void setupBLE() {
+  BLEDevice::init(BLE_DEVICE_NAME);
+
+  bleServer = BLEDevice::createServer();
+  bleServer->setCallbacks(new ServerCallbacks());
+
+  BLEService *service = bleServer->createService(BLE_SERVICE_UUID);
+  uiDataCharacteristic = service->createCharacteristic(
+    BLE_UI_DATA_UUID,
+    BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
+  );
+  uiDataCharacteristic->addDescriptor(new BLE2902());
+  uiDataCharacteristic->setValue("READY");
+
+  service->start();
+
+  BLEAdvertising *advertising = BLEDevice::getAdvertising();
+  advertising->addServiceUUID(BLE_SERVICE_UUID);
+  advertising->setScanResponse(true);
+  advertising->start();
+
+  Serial.println("BLE: Advertising as ChewTune-S2");
+}
+
+void readComputerMessages() {
+  while (Serial.available() > 0) {
+    char value = (char)Serial.read();
+
+    if (value == '\n') {
+      computerMessage[computerMessageLength] = '\0';
+      if (computerMessageLength >= 2 && computerMessage[0] == 'U' && computerMessage[1] == ',') {
+        notifyPhone(computerMessage);
+      }
+      computerMessageLength = 0;
+      continue;
+    }
+
+    if (value == '\r') {
+      continue;
+    }
+
+    if (computerMessageLength < sizeof(computerMessage) - 1) {
+      computerMessage[computerMessageLength++] = value;
+    } else {
+      computerMessageLength = 0;
+    }
+  }
+}
+
+void sendBleHeartbeat() {
+  if (!phoneConnected || millis() - lastHeartbeatMs < 1000) {
+    return;
+  }
+
+  lastHeartbeatMs = millis();
+  char heartbeat[20];
+  snprintf(heartbeat, sizeof(heartbeat), "H,%lu", lastHeartbeatMs);
+  notifyPhone(heartbeat);
+}
 
 int16_t toInt16BE(uint8_t high, uint8_t low) {
   return (int16_t)((high << 8) | low);
@@ -148,6 +247,8 @@ void setup() {
 
   Serial.println("BOOT: XIAO ESP32S3 + dual GY-521 MPU6050 I2C 100Hz");
 
+  setupBLE();
+
   Wire.begin(SDA_PIN, SCL_PIN);
   Wire.setClock(400000);
 
@@ -169,6 +270,9 @@ void setup() {
 }
 
 void loop() {
+  readComputerMessages();
+  sendBleHeartbeat();
+
   unsigned long nowUs = micros();
 
   if (nowUs - lastSampleUs >= SAMPLE_INTERVAL_US) {
