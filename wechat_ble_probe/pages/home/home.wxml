@@ -1,0 +1,66 @@
+<view class="home-page">
+  <image
+    class="home-art"
+    src="{{themeSelected ? homePageSelected : homePage}}"
+    mode="aspectFill"
+  ></image>
+
+  <view class="theme-hit" bindtap="openThemePicker"></view>
+
+  <view class="nav-hit nav-home" bindtap="showComingSoon"></view>
+  <view class="nav-hit nav-report" bindtap="showComingSoon"></view>
+  <view class="nav-hit nav-training {{starting ? 'pressed' : ''}}" bindtap="startTraining">
+    <view wx:if="{{starting}}" class="start-ripple"></view>
+  </view>
+  <view class="nav-hit nav-favorite" bindtap="showComingSoon"></view>
+  <view class="nav-hit nav-profile" bindtap="showComingSoon"></view>
+
+  <view wx:if="{{themeOpen}}" class="theme-backdrop" bindtap="closeThemePicker">
+    <view class="theme-card" catchtap="stopCardTap">
+      <view class="theme-card-title">Mindful Melodies <text class="theme-arrow">▲</text></view>
+
+      <view
+        class="theme-grid"
+        bindtouchstart="onGridTouchStart"
+        catchtouchmove="onGridTouchMove"
+      >
+        <view class="grid-line vertical v1"></view>
+        <view class="grid-line vertical v2"></view>
+        <view class="grid-line vertical v3"></view>
+        <view class="grid-line vertical v4"></view>
+        <view class="grid-line vertical v5"></view>
+        <view class="grid-line horizontal h1"></view>
+        <view class="grid-line horizontal h2"></view>
+        <view class="grid-line horizontal h3"></view>
+        <view class="grid-line horizontal h4"></view>
+
+        <text class="axis-label peaceful">Peaceful</text>
+        <text class="axis-label bright">Bright</text>
+        <text class="axis-label energetic">Energetic</text>
+        <text class="axis-label somber">Somber</text>
+        <text class="axis-label deep">Deep</text>
+        <text class="axis-label intense">Intense</text>
+
+        <view
+          class="theme-dot"
+          style="left: {{dotLeft}}%; top: {{dotTop}}%;"
+        ></view>
+      </view>
+
+      <button class="confirm-theme" bindtap="saveTheme">Confirm</button>
+    </view>
+  </view>
+
+  <view
+    wx:if="{{onboardingOpen}}"
+    class="onboarding-backdrop"
+    catchtouchmove="stopOnboardingTouch"
+  >
+    <image
+      class="onboarding-art"
+      src="{{onboardingModal}}"
+      mode="aspectFill"
+    ></image>
+    <view class="onboarding-start-hit" bindtap="startAssessment"></view>
+  </view>
+</view>

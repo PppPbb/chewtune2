@@ -1,0 +1,47 @@
+<view class="report-page">
+  <view class="report-header">
+    <view>
+      <view class="title">Meal Report</view>
+      <view class="subtitle">{{mealTime}}</view>
+    </view>
+    <button class="close-button" bindtap="finish">×</button>
+  </view>
+
+  <view class="hero">
+    <view class="hero-copy">
+      <view class="hero-title">Great rhythm</view>
+      <view class="hero-text">You stayed within your preferred pace for most of this meal.</view>
+      <view class="hero-pills">
+        <view class="pill score">{{score}} / 100</view>
+        <view class="pill">{{durationText}}</view>
+      </view>
+    </view>
+    <view class="character-halo"></view>
+    <image class="hero-character" src="{{characterImage}}" mode="aspectFit"></image>
+  </view>
+
+  <view class="section-title">Session distribution</view>
+  <view class="metric-grid">
+    <view class="metric-card green"><view class="metric-label">CPM</view><view class="metric-value">{{normalPercent}}%</view><view class="metric-note">normal pace</view><view class="metric-dot"></view></view>
+    <view class="metric-card purple"><view class="metric-label">Sides</view><view class="metric-value">{{leftPercent}}%</view><view class="metric-note">left chewing</view><view class="metric-dot"></view></view>
+    <view class="metric-card blue"><view class="metric-label">Bite gap</view><view class="metric-value">{{avgPpb}}s</view><view class="metric-note">avg interval</view><view class="metric-dot"></view></view>
+    <view class="metric-card yellow"><view class="metric-label">Duration</view><view class="metric-value">{{durationText}}</view><view class="metric-note">overall time</view><view class="metric-dot"></view></view>
+  </view>
+
+  <view class="section-title threshold-title">Adjust thresholds</view>
+  <view class="threshold-grid">
+    <view class="threshold-card">
+      <view class="threshold-name">Speed threshold</view>
+      <view class="stepper"><button class="step-button minus" data-delta="-1" bindtap="adjustSpeed">−</button><view class="step-value"><text>{{speedThreshold}}</text><view>cpm</view></view><button class="step-button plus" data-delta="1" bindtap="adjustSpeed">+</button></view>
+    </view>
+    <view class="threshold-card">
+      <view class="threshold-name">Bite gap threshold</view>
+      <view class="stepper"><button class="step-button minus" data-delta="-0.1" bindtap="adjustPpb">−</button><view class="step-value"><text>{{ppbThreshold}}</text><view>sec ppb</view></view><button class="step-button plus" data-delta="0.1" bindtap="adjustPpb">+</button></view>
+    </view>
+  </view>
+
+  <view class="actions">
+    <button class="share-button" open-type="share">Share Report</button>
+    <button class="finish-button" bindtap="finish">Confirm &amp; Finish</button>
+  </view>
+</view>

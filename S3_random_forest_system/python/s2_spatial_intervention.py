@@ -515,6 +515,26 @@ def format_layers(active_layers: set[str]) -> str:
     return "+".join(sorted(active_layers)) or "none"
 
 
+def send_ble_ui_summary(ser, detection: dict, intervention_result: dict, ppb_result: dict, enabled: bool) -> None:
+    if not enabled:
+        return
+    chewing = 1 if detection.get("state") == "chewing" else 0
+    cpm = int(np.clip(round(float(detection.get("cpm", 0.0))), 0, 999))
+    side = {"left_chewing": "L", "right_chewing": "R", "both_or_unknown": "B"}.get(
+        str(detection.get("side", "")), "-"
+    )
+    stability = int(np.clip(round(float(intervention_result.get("stability", 0.0)) * 100.0), 0, 100))
+    ppb_tenths = int(np.clip(round(float(ppb_result.get("ppb_elapsed", 0.0)) * 10.0), 0, 99))
+    ppb_state = {
+        "idle": "I",
+        "debouncing": "D",
+        "waiting": "W",
+        "ready": "R",
+        "too_short": "T",
+    }.get(str(ppb_result.get("ppb_state", "")), "-")
+    ser.write(f"U,{chewing},{cpm},{side},{stability},{ppb_tenths},{ppb_state}\n".encode("ascii"))
+
+
 def run_terminal_loop(
     ser,
     args: argparse.Namespace,
@@ -567,6 +587,7 @@ def run_terminal_loop(
         spatial.update_from_detection(detection, now_s)
         pan = spatial.tick(now_s)
         player.set_active_layers(intervention_result["active_layers"], pan)
+        send_ble_ui_summary(ser, detection, intervention_result, ppb_result, not args.disable_ble_ui)
 
         print(
             f"S3={detection['state']:12s} side={detection['side']:15s} "
@@ -728,6 +749,7 @@ def run_visual_loop(
             spatial.update_from_detection(detection, now_s)
             pan = spatial.tick(now_s)
             player.set_active_layers(intervention_result["active_layers"], pan)
+            send_ble_ui_summary(ser, detection, intervention_result, ppb_result, not args.disable_ble_ui)
             runtime["detection"] = detection
             runtime["intervention"] = intervention_result
             runtime["ppb"] = ppb_result
@@ -836,6 +858,7 @@ def main() -> None:
     parser.add_argument("--ppb-threshold-seconds", type=float, default=4.0)
     parser.add_argument("--ppb-end-debounce-seconds", type=float, default=1.5)
     parser.add_argument("--disable-ppb-cues", action="store_true")
+    parser.add_argument("--disable-ble-ui", action="store_true")
     args = parser.parse_args()
 
     fs = args.sample_rate

@@ -1,0 +1,87 @@
+<view class="page {{paceClass}}">
+  <view class="ambient ambient-a"></view>
+  <view class="ambient ambient-b"></view>
+
+  <view class="topbar">
+    <image class="character" src="{{characterImage}}" mode="aspectFit"></image>
+    <button class="connection {{statusClass}}" bindtap="toggleConnection">
+      <view class="connection-dot"></view>
+      <text>{{status}}</text>
+    </button>
+  </view>
+
+  <view class="visualizer">
+    <canvas
+      class="music-ring"
+      canvas-id="musicRing"
+      width="320"
+      height="320"
+    ></canvas>
+    <view class="ring-center">
+      <view class="ring-value">{{cpm}}</view>
+      <view class="ring-unit">CPM</view>
+      <view class="ring-state">{{!audioReady ? '音乐加载中' : !audioUnlocked ? '点击音乐按钮开启' : musicEnabled ? musicState : '音乐已关闭'}} · {{chewing ? side : '音乐暂停'}}</view>
+    </view>
+  </view>
+
+  <view class="pace-note">
+    <view class="pace-line"></view>
+    <text>{{paceClass === 'fast' ? '节奏有点快，跟着音乐放慢一点' : chewing ? '节奏很好，继续保持' : ppbState}}</text>
+    <view class="pace-line"></view>
+  </view>
+
+  <view class="metrics">
+    <view class="metric">
+      <view class="metric-icon">♪</view>
+      <view class="metric-value">{{cpm}}</view>
+      <view class="metric-label">咀嚼频率</view>
+    </view>
+    <view class="metric">
+      <view class="metric-icon">≈</view>
+      <view class="metric-value">{{stability}}%</view>
+      <view class="metric-label">节奏稳定度</view>
+    </view>
+    <view class="metric">
+      <view class="metric-icon">Ⅱ</view>
+      <view class="metric-value">{{ppb}}s</view>
+      <view class="metric-label">进食间停顿</view>
+    </view>
+  </view>
+
+  <view class="ppb-panel">
+    <view class="ppb-head">
+      <view>
+        <view class="ppb-title">Pause between bites</view>
+        <view class="ppb-subtitle">{{ppbState}}</view>
+      </view>
+      <view class="ppb-time">{{ppb}}<text>s</text></view>
+    </view>
+    <view class="progress-track">
+      <view class="progress-fill" style="width: {{ppbProgress}}%;"></view>
+      <view class="progress-target"></view>
+    </view>
+    <view class="progress-labels"><text>0s</text><text>目标 4s</text></view>
+  </view>
+
+  <view class="bottom-actions">
+    <button class="round-action" bindtap="toggleLogs">···</button>
+    <button class="primary-action {{statusClass}}" bindtap="finishOrConnect">
+      {{statusClass === 'connected' ? '结束本次陪伴' : '连接 ChewTune'}}
+    </button>
+    <button class="audio-action {{musicEnabled && audioUnlocked ? 'enabled' : ''}}" bindtap="toggleAudio">
+      {{audioUnlocked && musicEnabled ? '♫' : '▶'}}
+    </button>
+  </view>
+
+  <view wx:if="{{logsShown}}" class="debug-sheet">
+    <view class="sheet-head">
+      <view>
+        <text class="sheet-title">连接信息</text>
+        <text class="sheet-meta">Audio {{audioStatus}} · Heartbeat {{heartbeat}}</text>
+      </view>
+      <text bindtap="toggleLogs" class="sheet-close">×</text>
+    </view>
+    <view wx:if="{{logs.length === 0}}" class="empty">还没有连接记录</view>
+    <view wx:for="{{logs}}" wx:key="index" class="log">{{item}}</view>
+  </view>
+</view>

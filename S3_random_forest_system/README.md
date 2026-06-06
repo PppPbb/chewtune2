@@ -352,3 +352,29 @@ python python\realtime_dual_mpu6050_detection.py --port COM4 --side-ratio 1.05
 python python\realtime_dual_mpu6050_detection.py --port COM4 --min-channel-std 0.01
 python python\realtime_dual_mpu6050_detection.py --port COM4 --counter-min-peak-distance 0.4
 ```
+
+## BLE GATT Server and WeChat Probe
+
+The S3 Arduino firmware advertises as `ChewTune-S3` and keeps streaming the
+dual-MPU6050 CSV over USB serial. The S3 Python program sends a compact UI
+summary back through the same serial connection; the firmware forwards that
+summary to the phone with BLE Notify.
+
+```text
+Service UUID: 7b100001-7c6a-4d91-a461-9c987d97b100
+Notify UUID:  7b100002-7c6a-4d91-a461-9c987d97b100
+Heartbeat:    H,<milliseconds>
+UI summary:   U,<chewing>,<cpm>,<side>,<stability>,<ppb_tenths>,<ppb_state>
+PPB states:   I=idle, D=debouncing, W=waiting, R=ready, T=too_short
+```
+
+Run S3 with BLE UI summaries enabled:
+
+```powershell
+python python\s3_rf_spatial_intervention.py --port COM9
+```
+
+Use `--disable-ble-ui` when the computer should not send summaries to BLE.
+For initial validation, use nRF Connect or import the root
+`wechat_ble_probe` directory into WeChat Developer Tools and test on a real
+phone. The desktop simulator cannot fully validate BLE.

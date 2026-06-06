@@ -1,0 +1,53 @@
+.loading-page {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.loading-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.progress-overlay {
+  position: absolute;
+  top: 67.54%;
+  left: 7.65%;
+  width: 84.7%;
+  height: 1.95%;
+  overflow: hidden;
+  border-radius: 999rpx;
+}
+
+.progress-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 999rpx;
+  background: #7781ff;
+  box-shadow: 0 0 20rpx rgba(119, 129, 255, 0.35);
+  transition: width 80ms linear;
+}
+
+.progress-shine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 150rpx;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.42), transparent);
+  animation: shine 1.2s ease-in-out infinite;
+}
+
+@keyframes shine {
+  from {
+    left: -160rpx;
+  }
+  to {
+    left: 100%;
+  }
+}

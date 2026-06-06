@@ -1,0 +1,8 @@
+<view class="loading-page">
+  <image class="loading-art" src="{{loadingScreen}}" mode="aspectFill"></image>
+
+  <view class="progress-overlay">
+    <view class="progress-fill" style="width: {{progress}}%;"></view>
+    <view class="progress-shine"></view>
+  </view>
+</view>
