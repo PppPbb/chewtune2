@@ -1,0 +1,84 @@
+S3 chewing-state RF evaluation
+Data dir: C:\Users\YUN\Desktop\chewtune\chewtune\S3_random_forest_system\data\state
+
+Window label counts:
+label
+non_chewing    517
+chewing        296
+
+Window counts by source:
+label                        chewing  non_chewing
+source_file                                      
+session_20260606_121208.csv        0           12
+session_20260606_121942.csv       62           33
+session_20260606_122842.csv      117          236
+session_20260606_125125.csv      117          236
+
+Saved model evaluation: C:\Users\YUN\Desktop\chewtune\chewtune\S3_random_forest_system\models\chewing_state_rf.pkl
+accuracy: 0.9951
+recall_chewing: 0.9865
+recall_non_chewing: 1.0000
+recall_macro: 0.9932
+
+Classification report:
+              precision    recall  f1-score   support
+
+     chewing     1.0000    0.9865    0.9932       296
+ non_chewing     0.9923    1.0000    0.9961       517
+
+    accuracy                         0.9951       813
+   macro avg     0.9962    0.9932    0.9947       813
+weighted avg     0.9951    0.9951    0.9951       813
+
+Confusion matrix [rows=true, cols=pred]:
+             chewing  non_chewing
+chewing          292            4
+non_chewing        0          517
+
+Random window holdout evaluation
+accuracy: 0.9755
+recall_chewing: 0.9730
+recall_non_chewing: 0.9769
+recall_macro: 0.9749
+
+Classification report:
+              precision    recall  f1-score   support
+
+     chewing     0.9600    0.9730    0.9664        74
+ non_chewing     0.9845    0.9769    0.9807       130
+
+    accuracy                         0.9755       204
+   macro avg     0.9722    0.9749    0.9736       204
+weighted avg     0.9756    0.9755    0.9755       204
+
+Confusion matrix [rows=true, cols=pred]:
+             chewing  non_chewing
+chewing           72            2
+non_chewing        3          127
+
+Leave-one-session-out evaluation
+session_20260606_121208.csv: windows=12, accuracy=0.0000, chewing_recall=0.0000
+session_20260606_121942.csv: windows=95, accuracy=0.4737, chewing_recall=0.1935
+session_20260606_122842.csv: windows=353, accuracy=0.8669, chewing_recall=0.6068
+session_20260606_125125.csv: windows=353, accuracy=0.7422, chewing_recall=0.9744
+
+Leave-one-session-out aggregate
+accuracy: 0.7540
+recall_chewing: 0.6655
+recall_non_chewing: 0.8046
+recall_macro: 0.7351
+
+Classification report:
+              precision    recall  f1-score   support
+
+     chewing     0.6611    0.6655    0.6633       296
+ non_chewing     0.8078    0.8046    0.8062       517
+
+    accuracy                         0.7540       813
+   macro avg     0.7344    0.7351    0.7348       813
+weighted avg     0.7544    0.7540    0.7542       813
+
+Confusion matrix [rows=true, cols=pred]:
+             chewing  non_chewing
+chewing          197           99
+non_chewing      101          416

@@ -1,0 +1,42 @@
+{
+  "session_id": "session_20260606_121942",
+  "created_at": "2026-06-06 12:19:42",
+  "port": "COM4",
+  "baud": 115200,
+  "subject": "S001",
+  "note": "",
+  "labels": {
+    "1": "chewing",
+    "2": "speaking",
+    "3": "still",
+    "q": "quit"
+  },
+  "sample_count": 5193,
+  "state_sample_counts": {
+    "chewing": 3323,
+    "speaking": 1004,
+    "still": 866
+  },
+  "transitions": [
+    {
+      "elapsed_s": 1.844,
+      "from": "still",
+      "to": "chewing"
+    },
+    {
+      "elapsed_s": 16.281,
+      "from": "chewing",
+      "to": "speaking"
+    },
+    {
+      "elapsed_s": 10.047,
+      "from": "speaking",
+      "to": "still"
+    },
+    {
+      "elapsed_s": 6.812,
+      "from": "still",
+      "to": "chewing"
+    }
+  ]
+}
