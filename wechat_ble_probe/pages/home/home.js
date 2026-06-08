@@ -14,6 +14,12 @@ Page({
   },
 
   onLoad() {
+    const assessmentFlowVersion = "assessment-flow-v2";
+    if (wx.getStorageSync("chewtuneAssessmentFlowVersion") !== assessmentFlowVersion) {
+      wx.removeStorageSync("chewtuneAssessmentOnboardingSeen");
+      wx.setStorageSync("chewtuneAssessmentFlowVersion", assessmentFlowVersion);
+    }
+
     require("../../utils/cloud-assets")
       .resolve(
         ["homePage", "homePageSelected", "onboardingModal"],
@@ -108,12 +114,16 @@ Page({
   },
 
   startAssessment() {
-    wx.setStorageSync("chewtuneAssessmentOnboardingSeen", true);
     this.setData({
       onboardingOpen: false,
-      assessmentSeen: true
+      assessmentSeen: false
     });
-    this.enterTraining();
+    if (this.data.starting) return;
+    this.setData({ starting: true });
+    wx.navigateTo({
+      url: "/pages/index/index?autoStart=1&assessment=1",
+      complete: () => this.setData({ starting: false })
+    });
   },
 
   stopOnboardingTouch() {},
@@ -123,7 +133,7 @@ Page({
     this.setData({ starting: true });
     setTimeout(() => {
       wx.navigateTo({
-        url: "/pages/index/index?autoStart=1",
+        url: "/pages/tutorial/tutorial",
         complete: () => this.setData({ starting: false })
       });
     }, 180);

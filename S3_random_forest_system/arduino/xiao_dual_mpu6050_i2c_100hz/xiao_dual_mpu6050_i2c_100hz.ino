@@ -67,6 +67,15 @@ class ServerCallbacks : public BLEServerCallbacks {
   }
 };
 
+class UiDataCallbacks : public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic *characteristic) override {
+    std::string value = characteristic->getValue();
+    if (value.rfind("C,", 0) == 0 && value.length() < 48) {
+      Serial.println(value.c_str());
+    }
+  }
+};
+
 void notifyPhone(const char *message) {
   if (!phoneConnected || uiDataCharacteristic == nullptr) return;
   uiDataCharacteristic->setValue((uint8_t *)message, strlen(message));
@@ -81,8 +90,12 @@ void setupBLE() {
   BLEService *service = bleServer->createService(BLE_SERVICE_UUID);
   uiDataCharacteristic = service->createCharacteristic(
     BLE_UI_DATA_UUID,
-    BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
+    BLECharacteristic::PROPERTY_READ |
+      BLECharacteristic::PROPERTY_NOTIFY |
+      BLECharacteristic::PROPERTY_WRITE |
+      BLECharacteristic::PROPERTY_WRITE_NR
   );
+  uiDataCharacteristic->setCallbacks(new UiDataCallbacks());
   uiDataCharacteristic->addDescriptor(new BLE2902());
   uiDataCharacteristic->setValue("READY");
   service->start();
@@ -99,7 +112,11 @@ void readComputerMessages() {
     char value = (char)Serial.read();
     if (value == '\n') {
       computerMessage[computerMessageLength] = '\0';
-      if (computerMessageLength >= 2 && computerMessage[0] == 'U' && computerMessage[1] == ',') {
+      if (
+        computerMessageLength >= 2 &&
+        (computerMessage[0] == 'U' || computerMessage[0] == 'M') &&
+        computerMessage[1] == ','
+      ) {
         notifyPhone(computerMessage);
       }
       computerMessageLength = 0;

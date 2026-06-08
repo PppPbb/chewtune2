@@ -1,5 +1,3 @@
-const cloudAssets = require("./cloud-assets");
-
 const LAYERS = ["background", "bass", "drum", "melody"];
 const CUES = ["pop", "ding", "error"];
 const STATE_LAYERS = {
@@ -16,50 +14,55 @@ class MusicFeedback {
     this.enabled = true;
     this.unlocked = false;
     this.state = "pause";
+    this.layerMask = 0;
     this.layers = {};
     this.cues = {};
     this.sources = {};
     this.readyNames = new Set();
     this.readyReported = false;
     this.layersStarted = false;
+    this.activeLayers = new Set();
+    this.preparing = false;
+    this.prepared = false;
   }
 
-  async prepare() {
-    await this.configureAudioSession();
-    this.sources = await this.resolveSources();
+  prepare() {
+    if (this.preparing || this.prepared) return;
+    this.preparing = true;
+    this.configureAudioSession();
+    this.sources = this.resolveSources();
     LAYERS.forEach((name) => {
-      if (!this.sources[name]) {
-        this.onError(`${name}: cloud download unavailable`);
-        return;
-      }
       const audio = wx.createInnerAudioContext();
       audio.src = this.sources[name];
       audio.loop = true;
       audio.volume = 0;
       audio.onCanplay(() => this.markReady(name));
       audio.onPlay(() => this.onError(`${name}: playing at volume ${audio.volume}`));
+      audio.onPause(() => this.onError(`${name}: paused`));
       audio.onWaiting(() => this.onError(`${name}: waiting`));
       audio.onError((error) => this.onError(`${name}: ${error.errMsg || error}`));
       this.layers[name] = audio;
+      if (this.layersStarted) this.playLayer(name);
     });
 
     CUES.forEach((name) => {
-      if (!this.sources[name]) {
-        this.onError(`${name}: cloud download unavailable`);
-        return;
-      }
       const audio = wx.createInnerAudioContext();
       audio.src = this.sources[name];
       audio.volume = 1;
       audio.onCanplay(() => this.markReady(name));
-      audio.onPlay(() => {
-        this.onError(`${name}: playing at volume ${audio.volume}`);
-        if (name === "ding" && this.unlocked) this.startLayers();
-      });
+      audio.onPlay(() => this.onError(`${name}: playing at volume ${audio.volume}`));
       audio.onWaiting(() => this.onError(`${name}: waiting`));
       audio.onError((error) => this.onError(`${name}: ${error.errMsg || error}`));
       this.cues[name] = audio;
     });
+    this.preparing = false;
+    this.prepared = true;
+  }
+
+  setCallbacks(onError, onReady) {
+    this.onError = onError || (() => {});
+    this.onReady = onReady || (() => {});
+    if (this.readyReported) this.onReady(false);
   }
 
   configureAudioSession() {
@@ -83,48 +86,40 @@ class MusicFeedback {
     if (this.readyNames.has(name)) return;
     this.readyNames.add(name);
     this.onError(`${name}: ready`);
-    if (!this.readyReported && this.readyNames.size === LAYERS.length + CUES.length) {
+    if (!this.readyReported && LAYERS.every((layer) => this.readyNames.has(layer))) {
       this.readyReported = true;
-      this.onReady(Boolean(cloudAssets.config.envId));
+      this.onReady(false);
     }
   }
 
-  async resolveSources() {
+  resolveSources() {
     const local = {};
     LAYERS.forEach((name) => { local[name] = `/assets/music/${name}.wav`; });
     CUES.forEach((name) => { local[name] = `/assets/music/${name}.mp3`; });
-
-    return cloudAssets.download(
-      [...LAYERS, ...CUES],
-      local,
-      (message) => this.onError(message)
-    );
+    return local;
   }
 
-  unlockWithTestCue() {
+  unlockAudio() {
     if (this.unlocked) return false;
     this.unlocked = true;
-    const ding = this.cues.ding;
-    if (ding) {
-      ding.volume = 1;
-      ding.play();
-      setTimeout(() => this.startLayers(), 1200);
-      return true;
-    }
     this.startLayers();
-    return false;
+    return true;
   }
 
   startLayers() {
     if (this.layersStarted) return;
     this.layersStarted = true;
-    LAYERS.forEach((name) => {
-      const audio = this.layers[name];
-      if (!audio) return;
-      audio.volume = 0;
-      audio.play();
-    });
     this.applyState();
+  }
+
+  playLayer(name) {
+    const audio = this.layers[name];
+    if (!audio) return;
+    try {
+      audio.play();
+    } catch (error) {
+      this.onError(`${name}: play failed ${error.errMsg || error}`);
+    }
   }
 
   setEnabled(enabled) {
@@ -134,14 +129,39 @@ class MusicFeedback {
 
   setState(state) {
     this.state = STATE_LAYERS[state] ? state : "pause";
+    this.layerMask = 0;
+    this.applyState();
+  }
+
+  applyDecision(state, layerMask) {
+    this.state = STATE_LAYERS[state] ? state : "pause";
+    this.layerMask = Number(layerMask) || 0;
     this.applyState();
   }
 
   applyState() {
-    const active = new Set(this.enabled && this.unlocked ? STATE_LAYERS[this.state] : []);
+    const layerBits = { background: 1, bass: 2, drum: 4, melody: 8 };
+    const active = new Set(
+      this.enabled && this.unlocked
+        ? LAYERS.filter((name) => (this.layerMask & layerBits[name]) !== 0)
+        : []
+    );
     LAYERS.forEach((name) => {
-      if (this.layers[name]) this.layers[name].volume = active.has(name) ? 0.72 : 0;
+      const audio = this.layers[name];
+      if (!audio) return;
+      const shouldPlay = active.has(name);
+      const wasActive = this.activeLayers.has(name);
+      if (shouldPlay) {
+        audio.volume = 0.72;
+        if (audio.paused) this.playLayer(name);
+        if (!wasActive) this.onError(`${name}: activated at volume ${audio.volume}`);
+      } else {
+        audio.volume = 0;
+        if (!audio.paused) audio.pause();
+        if (wasActive) this.onError(`${name}: deactivated`);
+      }
     });
+    this.activeLayers = active;
   }
 
   playCue(name) {
@@ -157,6 +177,9 @@ class MusicFeedback {
     Object.values(this.cues).forEach((audio) => audio.destroy());
     this.layers = {};
     this.cues = {};
+    this.activeLayers = new Set();
+    this.prepared = false;
+    this.preparing = false;
   }
 }
 

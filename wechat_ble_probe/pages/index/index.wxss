@@ -11,8 +11,8 @@
 }
 
 .page.fast {
-  --accent: #f05c6b;
-  --accent-soft: #ffacb4;
+  --accent: #f39a45;
+  --accent-soft: #ffd1a5;
 }
 
 .ambient {
@@ -56,6 +56,7 @@
 }
 
 .topbar,
+.session-thresholds,
 .visualizer,
 .pace-note,
 .metrics,
@@ -97,6 +98,64 @@ button::after {
   height: 16rpx;
   border-radius: 50%;
   background: #a9a5b4;
+}
+
+.session-thresholds {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24rpx;
+  width: max-content;
+  margin: 18rpx auto 0;
+  padding: 15rpx 28rpx;
+  border: 1rpx solid rgba(118, 125, 255, 0.14);
+  border-radius: 42rpx;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 10rpx 30rpx rgba(76, 70, 128, 0.07);
+}
+
+.threshold-chip {
+  display: flex;
+  align-items: baseline;
+  gap: 10rpx;
+}
+
+.threshold-label {
+  color: #9994a7;
+  font-size: 18rpx;
+}
+
+.threshold-number {
+  color: var(--accent);
+  font-size: 27rpx;
+  font-weight: 760;
+}
+
+.threshold-divider {
+  width: 1rpx;
+  height: 32rpx;
+  background: #e7e4ef;
+}
+
+.assessment-badge {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 16rpx 24rpx;
+  border: 1rpx solid rgba(118, 125, 255, 0.18);
+  border-radius: 36rpx;
+  background: rgba(255, 255, 255, 0.74);
+  color: #6f7190;
+  font-size: 23rpx;
+  font-weight: 650;
+}
+
+.assessment-badge-dot {
+  width: 15rpx;
+  height: 15rpx;
+  border-radius: 50%;
+  background: #62c99b;
+  box-shadow: 0 0 0 7rpx rgba(98, 201, 155, 0.15);
 }
 
 .connection.connected .connection-dot {

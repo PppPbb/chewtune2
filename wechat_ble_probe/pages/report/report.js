@@ -7,13 +7,17 @@ Page({
     avgPpb: "0.0",
     speedThreshold: 72,
     ppbThreshold: "4.0",
+    assessmentMode: false,
     mealTime: "",
     characterImage: "/assets/chewtune-character.png"
   },
 
   onLoad(options) {
+    const assessmentMode = Boolean(options.assessment === "1");
     const savedSpeed = Number(wx.getStorageSync("chewtuneSpeedThreshold")) || 72;
     const savedPpb = Number(wx.getStorageSync("chewtunePpbThreshold")) || 4;
+    const recommendedCpm = Number(options.recommendedCpm) || savedSpeed;
+    const recommendedPpb = Number(options.recommendedPpb) || savedPpb;
     const duration = Number(options.duration) || 0;
     const now = new Date();
     this.setData({
@@ -22,10 +26,16 @@ Page({
       normalPercent: Number(options.normal) || 0,
       leftPercent: Number(options.left) || 50,
       avgPpb: (Number(options.ppb) || 0).toFixed(1),
-      speedThreshold: savedSpeed,
-      ppbThreshold: savedPpb.toFixed(1),
+      assessmentMode,
+      speedThreshold: assessmentMode ? recommendedCpm : savedSpeed,
+      ppbThreshold: (assessmentMode ? recommendedPpb : savedPpb).toFixed(1),
       mealTime: `Today ${this.pad(now.getHours())}:${this.pad(now.getMinutes())} - Meal`
     });
+    if (assessmentMode) {
+      wx.setStorageSync("chewtuneAssessmentOnboardingSeen", true);
+      wx.setStorageSync("chewtuneSpeedThreshold", recommendedCpm);
+      wx.setStorageSync("chewtunePpbThreshold", recommendedPpb);
+    }
     require("../../utils/cloud-assets")
       .resolve(["character"], { character: "/assets/chewtune-character.png" })
       .then((assets) => this.setData({ characterImage: assets.character }));

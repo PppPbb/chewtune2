@@ -9,8 +9,8 @@
 
   <view class="hero">
     <view class="hero-copy">
-      <view class="hero-title">Great rhythm</view>
-      <view class="hero-text">You stayed within your preferred pace for most of this meal.</view>
+      <view class="hero-title">{{assessmentMode ? 'Assessment complete' : 'Great rhythm'}}</view>
+      <view class="hero-text">{{assessmentMode ? 'Your natural eating rhythm is ready for personalized guidance.' : 'You stayed within your preferred pace for most of this meal.'}}</view>
       <view class="hero-pills">
         <view class="pill score">{{score}} / 100</view>
         <view class="pill">{{durationText}}</view>
@@ -28,7 +28,7 @@
     <view class="metric-card yellow"><view class="metric-label">Duration</view><view class="metric-value">{{durationText}}</view><view class="metric-note">overall time</view><view class="metric-dot"></view></view>
   </view>
 
-  <view class="section-title threshold-title">Adjust thresholds</view>
+  <view class="section-title threshold-title">{{assessmentMode ? 'AI Recommendations' : 'Adjust thresholds'}}</view>
   <view class="threshold-grid">
     <view class="threshold-card">
       <view class="threshold-name">Speed threshold</view>

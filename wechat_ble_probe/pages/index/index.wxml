@@ -4,10 +4,26 @@
 
   <view class="topbar">
     <image class="character" src="{{characterImage}}" mode="aspectFit"></image>
+    <view wx:if="{{assessmentMode}}" class="assessment-badge">
+      <view class="assessment-badge-dot"></view>
+      <text>无干预检测中</text>
+    </view>
     <button class="connection {{statusClass}}" bindtap="toggleConnection">
       <view class="connection-dot"></view>
       <text>{{status}}</text>
     </button>
+  </view>
+
+  <view wx:if="{{!assessmentMode}}" class="session-thresholds">
+    <view class="threshold-chip">
+      <text class="threshold-label">CPM threshold</text>
+      <text class="threshold-number">{{speedThreshold}}</text>
+    </view>
+    <view class="threshold-divider"></view>
+    <view class="threshold-chip">
+      <text class="threshold-label">PPB threshold</text>
+      <text class="threshold-number">{{ppbThreshold}}s</text>
+    </view>
   </view>
 
   <view class="visualizer">
@@ -20,7 +36,7 @@
     <view class="ring-center">
       <view class="ring-value">{{cpm}}</view>
       <view class="ring-unit">CPM</view>
-      <view class="ring-state">{{!audioReady ? '音乐加载中' : !audioUnlocked ? '点击音乐按钮开启' : musicEnabled ? musicState : '音乐已关闭'}} · {{chewing ? side : '音乐暂停'}}</view>
+      <view class="ring-state">{{assessmentMode ? '无干预检测 · 音乐关闭' : (!audioReady ? '音乐加载中' : !audioUnlocked ? '点击音乐按钮开启' : musicEnabled ? musicState : '音乐已关闭')}} · {{chewing ? side : '等待咀嚼'}}</view>
     </view>
   </view>
 
@@ -60,7 +76,7 @@
       <view class="progress-fill" style="width: {{ppbProgress}}%;"></view>
       <view class="progress-target"></view>
     </view>
-    <view class="progress-labels"><text>0s</text><text>目标 4s</text></view>
+    <view class="progress-labels"><text>0s</text><text>目标 {{ppbThreshold}}s</text></view>
   </view>
 
   <view class="bottom-actions">
@@ -68,7 +84,7 @@
     <button class="primary-action {{statusClass}}" bindtap="finishOrConnect">
       {{statusClass === 'connected' ? '结束本次陪伴' : '连接 ChewTune'}}
     </button>
-    <button class="audio-action {{musicEnabled && audioUnlocked ? 'enabled' : ''}}" bindtap="toggleAudio">
+    <button wx:if="{{!assessmentMode}}" class="audio-action {{musicEnabled && audioUnlocked ? 'enabled' : ''}}" bindtap="toggleAudio">
       {{audioUnlocked && musicEnabled ? '♫' : '▶'}}
     </button>
   </view>
@@ -77,7 +93,7 @@
     <view class="sheet-head">
       <view>
         <text class="sheet-title">连接信息</text>
-        <text class="sheet-meta">Audio {{audioStatus}} · Heartbeat {{heartbeat}}</text>
+        <text class="sheet-meta">Audio {{audioStatus}} · {{musicDecisionStatus}} · Heartbeat {{heartbeat}}</text>
       </view>
       <text bindtap="toggleLogs" class="sheet-close">×</text>
     </view>

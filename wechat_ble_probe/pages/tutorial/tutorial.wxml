@@ -1,0 +1,69 @@
+<view class="tutorial-page">
+  <view class="dim-preview">
+    <view class="preview-pill">Target: {{speedThreshold}} CPM · {{ppbThreshold}}s PPB</view>
+  </view>
+
+  <view class="sheet">
+    <view class="grabber"></view>
+    <button class="back-button" bindtap="back">‹</button>
+
+    <block wx:if="{{step.type === 'threshold'}}">
+      <view class="threshold-layout">
+        <view class="main-title">{{step.title}}</view>
+        <view class="intro">{{step.description}}</view>
+        <view class="threshold-grid">
+          <view class="threshold-card">
+            <view class="threshold-name">Recommended CPM</view>
+            <view class="stepper">
+              <button class="step-button minus" data-delta="-1" bindtap="adjustSpeed">−</button>
+              <view class="threshold-value"><text>{{speedThreshold}}</text><view>CPM</view></view>
+              <button class="step-button plus" data-delta="1" bindtap="adjustSpeed">+</button>
+            </view>
+            <view class="mini-track"><view class="mini-fill cpm-fill"></view></view>
+          </view>
+          <view class="threshold-card">
+            <view class="threshold-name">Recommended PPB</view>
+            <view class="stepper">
+              <button class="step-button minus" data-delta="-0.1" bindtap="adjustPpb">−</button>
+              <view class="threshold-value"><text>{{ppbThreshold}}</text><view>sec PPB</view></view>
+              <button class="step-button plus" data-delta="0.1" bindtap="adjustPpb">+</button>
+            </view>
+            <view class="mini-track"><view class="mini-fill ppb-fill"></view></view>
+          </view>
+        </view>
+        <view class="guide-heading">How Music Guides You</view>
+        <view class="guide-copy">During a meal, the music responds to your chewing pace, rhythm stability, chewing side, and pauses between bites.</view>
+      </view>
+    </block>
+
+    <block wx:else>
+      <view class="main-title tutorial-title">{{step.title}}</view>
+      <view class="visual-card {{step.type}}">
+        <view class="orbit">
+          <view wx:if="{{step.type === 'balance'}}" class="half-mask"></view>
+          <view wx:for="{{beatDots}}" wx:key="index" class="beat-dot dot-{{index}} {{step.type === 'balance' && index > 8 ? 'muted' : ''}}"></view>
+          <view class="core {{step.type === 'bass' || step.type === 'pause' ? 'unlocked' : ''}}">
+            <text wx:if="{{step.type === 'bass'}}">BASS</text>
+            <text wx:elif="{{step.type === 'pause'}}">SET</text>
+            <view wx:else class="wave">⌁</view>
+          </view>
+          <view wx:if="{{step.type === 'follow' || step.type === 'bass'}}" class="orbit-label top">Melody ♪</view>
+          <view wx:if="{{step.type === 'slow'}}" class="orbit-label top pale">Melody fades</view>
+          <view wx:if="{{step.type === 'balance'}}" class="side-label left">Left Side</view>
+          <view wx:if="{{step.type === 'balance'}}" class="side-label right">Right Side</view>
+          <block wx:if="{{step.type === 'pause'}}">
+            <view class="pop p1">pop</view><view class="pop p2">pop</view><view class="pop p3">pop</view><view class="pop p4">ding</view>
+          </block>
+        </view>
+        <view wx:if="{{step.type === 'bass'}}" class="status-chip">Bass unlocked</view>
+        <view wx:if="{{step.type === 'balance'}}" class="status-chip">Switch side</view>
+        <view class="description">{{step.description}}</view>
+      </view>
+      <view class="dots">
+        <view wx:for="{{dots}}" wx:key="index" class="page-dot {{index === guideIndex ? 'active' : ''}}"></view>
+      </view>
+    </block>
+
+    <button class="next-button" bindtap="next">{{step.button}} ›</button>
+  </view>
+</view>

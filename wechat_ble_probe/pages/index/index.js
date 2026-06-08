@@ -30,6 +30,9 @@ Page({
     ppbState: "等待检测",
     ppbCode: "I",
     ppbProgress: 0,
+    speedThreshold: 86,
+    ppbThreshold: 4,
+    assessmentMode: false,
     paceClass: "calm",
     musicEnabled: true,
     musicState: "pause",
@@ -37,6 +40,7 @@ Page({
     audioUnlocked: false,
     audioSource: "local",
     audioStatus: "waiting",
+    musicDecisionStatus: "waiting for computer",
     characterImage: "/assets/chewtune-character.png",
     logsShown: false,
     logs: []
@@ -44,6 +48,14 @@ Page({
 
   onLoad(options) {
     this.resetSessionStats();
+    const assessmentMode = Boolean(options && options.assessment === "1");
+    this.setData({
+      speedThreshold: Number(wx.getStorageSync("chewtuneSpeedThreshold")) || 86,
+      ppbThreshold: Number(wx.getStorageSync("chewtunePpbThreshold")) || 4,
+      assessmentMode,
+      musicEnabled: !assessmentMode,
+      audioStatus: assessmentMode ? "no-intervention assessment" : "waiting"
+    });
     require("../../utils/cloud-assets")
       .resolve(["character"], { character: "/assets/chewtune-character.png" })
       .then((assets) => this.setData({ characterImage: assets.character }));
@@ -53,15 +65,26 @@ Page({
   },
 
   onReady() {
-    this.musicFeedback = new MusicFeedback(
+    const app = getApp();
+    this.musicFeedback = app.globalData.musicFeedback || new MusicFeedback(() => {}, () => {});
+    app.globalData.musicFeedback = this.musicFeedback;
+    this.musicFeedback.setCallbacks(
       (message) => {
         this.setData({ audioStatus: message });
         this.addLog(`Audio: ${message}`);
       },
-      (cloudEnabled) => this.setData({
-        audioReady: true,
-        audioSource: cloudEnabled ? "cloud" : "local"
-      })
+      (cloudEnabled) => {
+        const audioUnlocked = !this.data.assessmentMode && this.musicFeedback.unlocked;
+        if (!this.data.assessmentMode) {
+          this.musicFeedback.setEnabled(true);
+        }
+        this.setData({
+          audioReady: true,
+          audioUnlocked,
+          musicEnabled: !this.data.assessmentMode,
+          audioSource: cloudEnabled ? "cloud" : "local"
+        }, () => this.drawMusicRing());
+      }
     );
     this.musicFeedback.prepare();
     this.ringPhase = 0;
@@ -83,6 +106,7 @@ Page({
     }
     if (this.musicFeedback) {
       this.musicFeedback.destroy();
+      getApp().globalData.musicFeedback = null;
       this.musicFeedback = null;
     }
     this.stop();
@@ -101,7 +125,9 @@ Page({
       leftSamples: 0,
       rightSamples: 0,
       ppbTotal: 0,
-      ppbCount: 0
+      ppbCount: 0,
+      cpmTotal: 0,
+      cpmCount: 0
     };
     this.lastReportPpbCode = "I";
   },
@@ -111,7 +137,11 @@ Page({
     const stats = this.sessionStats;
     if (chewing) {
       stats.samples += 1;
-      if (cpm > 0 && cpm <= 120) stats.normalSamples += 1;
+      if (cpm > 0) {
+        stats.cpmTotal += cpm;
+        stats.cpmCount += 1;
+      }
+      if (cpm > 0 && cpm <= this.data.speedThreshold) stats.normalSamples += 1;
       if (sideCode === "L") stats.leftSamples += 1;
       if (sideCode === "R") stats.rightSamples += 1;
     }
@@ -133,11 +163,14 @@ Page({
     const sideTotal = (stats.leftSamples || 0) + (stats.rightSamples || 0);
     const leftPercent = sideTotal ? Math.round(((stats.leftSamples || 0) / sideTotal) * 100) : 50;
     const avgPpb = stats.ppbCount ? stats.ppbTotal / stats.ppbCount : Number(this.data.ppb) || 0;
+    const avgCpm = stats.cpmCount ? stats.cpmTotal / stats.cpmCount : Number(this.data.cpm) || 86;
+    const recommendedCpm = Math.max(30, Math.min(180, Math.round(avgCpm * 0.9)));
+    const recommendedPpb = Math.max(2, Math.min(8, avgPpb || 4));
     const balanceScore = 100 - Math.abs(50 - leftPercent) * 2;
     const score = Math.max(0, Math.min(100, Math.round(normalPercent * 0.75 + balanceScore * 0.25)));
     this.stop();
     wx.navigateTo({
-      url: `/pages/report/report?duration=${duration}&normal=${normalPercent}&left=${leftPercent}&ppb=${avgPpb.toFixed(1)}&score=${score}`
+      url: `/pages/report/report?duration=${duration}&normal=${normalPercent}&left=${leftPercent}&ppb=${avgPpb.toFixed(1)}&score=${score}&assessment=${this.data.assessmentMode ? 1 : 0}&recommendedCpm=${recommendedCpm}&recommendedPpb=${recommendedPpb.toFixed(1)}`
     });
   },
 
@@ -146,28 +179,32 @@ Page({
   },
 
   toggleAudio() {
+    if (this.data.assessmentMode) {
+      wx.showToast({ title: "无干预检测期间不播放音乐", icon: "none" });
+      return;
+    }
     if (!this.data.audioReady) {
       wx.showToast({ title: "音乐正在加载", icon: "none" });
       return;
     }
     if (!this.data.audioUnlocked) {
-      this.musicFeedback.unlockWithTestCue();
+      this.musicFeedback.unlockAudio();
       this.setData({ audioUnlocked: true, musicEnabled: true }, () => this.drawMusicRing());
-      wx.showToast({ title: "音乐已开启，请确认提示音", icon: "none" });
+      wx.showToast({ title: "音乐已开启", icon: "none" });
       return;
     }
     const musicEnabled = !this.data.musicEnabled;
     this.setData({ musicEnabled }, () => this.drawMusicRing());
     if (this.musicFeedback) {
       this.musicFeedback.setEnabled(musicEnabled);
-      if (musicEnabled) this.musicFeedback.playCue("ding");
     }
   },
 
   toggleConnection() {
-    if (this.musicFeedback && this.data.audioReady && !this.data.audioUnlocked) {
-      this.musicFeedback.unlockWithTestCue();
-      this.setData({ audioUnlocked: true });
+    if (!this.data.assessmentMode && this.musicFeedback && !this.data.audioUnlocked) {
+      this.musicFeedback.unlockAudio();
+      this.musicFeedback.setEnabled(true);
+      this.setData({ audioUnlocked: true, musicEnabled: true });
     }
     if (this.data.statusClass === "connected" || this.data.statusClass === "scanning") {
       this.stop();
@@ -242,6 +279,7 @@ Page({
         serviceId: service.uuid,
         characteristicId: characteristic.uuid
       });
+      await this.syncThresholds();
       this.setData({ status: "实时同步中", statusClass: "connected" });
       this.resetSessionStats();
       this.addLog(`已连接 ${device.name || device.localName}`);
@@ -263,6 +301,10 @@ Page({
       this.parseUiPacket(text);
       return;
     }
+    if (text.startsWith("M,")) {
+      this.parseMusicPacket(text);
+      return;
+    }
     this.addLog(`未知消息: ${text}`);
   },
 
@@ -277,11 +319,7 @@ Page({
     const cpm = Number(cpmValue) || 0;
     const ppbNumber = (Number(ppbTenths) || 0) / 10;
     const stability = Number(stabilityValue) || 0;
-    const musicState = !chewing ? "pause" : cpm > 120 ? "fast" : stability >= 50 ? "stable" : "normal";
-    const sideTarget = sideCode === "L" ? -1 : sideCode === "R" ? 1 : 0;
     this.recordSessionSample(chewing, cpm, sideCode, ppbNumber, ppbCode);
-    const currentBias = this.ringBias || 0;
-    this.ringBias = currentBias + (sideTarget - currentBias) * 0.18;
     this.setData({
       chewing,
       chewingLabel: chewing ? "正在咀嚼" : ppbCode === "R" ? "呼吸一下，准备下一口" : "享受这一刻",
@@ -292,32 +330,31 @@ Page({
       ppb: ppbNumber.toFixed(1),
       ppbState: PPB_LABELS[ppbCode] || ppbCode,
       ppbCode,
-      ppbProgress: Math.min(100, Math.round((ppbNumber / 4) * 100)),
-      paceClass: cpm > 120 ? "fast" : chewing ? "active" : "calm",
-      musicState
+      ppbProgress: Math.min(100, Math.round((ppbNumber / this.data.ppbThreshold) * 100))
     }, () => this.drawMusicRing());
-    this.updateMusicFeedback(musicState, ppbNumber, ppbCode);
   },
 
-  updateMusicFeedback(musicState, ppbNumber, ppbCode) {
-    if (!this.musicFeedback) return;
-    this.musicFeedback.setState(musicState);
-
-    const previousCode = this.lastPpbCode || "I";
-    if (ppbCode === "W") {
-      const mark = Math.min(3, Math.floor(ppbNumber));
-      if (mark >= 1 && mark > (this.lastPopMark || 0)) {
-        this.musicFeedback.playCue("pop");
-        this.lastPopMark = mark;
-      }
-    } else if (ppbCode === "R" && previousCode !== "R") {
-      this.musicFeedback.playCue("ding");
-    } else if (ppbCode === "T" && previousCode !== "T") {
-      this.musicFeedback.playCue("error");
+  parseMusicPacket(text) {
+    const fields = text.split(",");
+    if (fields.length !== 5) {
+      this.addLog(`音乐决策格式错误: ${text}`);
+      return;
     }
-
-    if (ppbCode !== "W") this.lastPopMark = 0;
-    this.lastPpbCode = ppbCode;
+    const state = { P: "pause", N: "normal", S: "stable", F: "fast" }[fields[1]] || "pause";
+    const pan = Math.max(-1, Math.min(1, (Number(fields[2]) || 0) / 100));
+    const layerMask = Number(fields[3]) || 0;
+    const cue = { O: "pop", D: "ding", E: "error" }[fields[4]] || "";
+    this.lastMusicDecisionAt = Date.now();
+    const currentBias = this.ringBias || 0;
+    this.ringBias = currentBias + (pan - currentBias) * 0.35;
+    this.setData({
+      musicState: state,
+      musicDecisionStatus: `computer ${state} · layers ${layerMask} · pan ${fields[2]}`,
+      paceClass: !this.data.assessmentMode && state === "fast" ? "fast" : !this.data.assessmentMode && state !== "pause" ? "active" : "calm"
+    }, () => this.drawMusicRing());
+    if (this.data.assessmentMode || !this.musicFeedback) return;
+    this.musicFeedback.applyDecision(state, layerMask);
+    if (cue) this.musicFeedback.playCue(cue);
   },
 
   drawMusicRing() {
@@ -326,10 +363,11 @@ Page({
     const center = size / 2;
     const baseRadius = 104;
     const segmentCount = 72;
-    const playing = this.data.chewing && this.data.musicEnabled;
+    const playing = this.data.chewing && this.data.musicEnabled && !this.data.assessmentMode;
     const bias = this.ringBias || 0;
     const biasAmount = Math.abs(bias);
     const phase = this.ringPhase || 0;
+    const ringColor = this.data.paceClass === "fast" ? "#f39a45" : "#747dff";
 
     context.clearRect(0, 0, size, size);
     context.setLineCap("round");
@@ -338,18 +376,18 @@ Page({
       const angle = (index / segmentCount) * Math.PI * 2 - Math.PI / 2;
       const onLeft = Math.cos(angle) < 0;
       const sideDirection = onLeft ? -1 : 1;
-      const focused = biasAmount < 0.12 || sideDirection === Math.sign(bias);
+      const sideGain = biasAmount < 0.04
+        ? 0
+        : sideDirection === Math.sign(bias)
+          ? biasAmount * 14
+          : -biasAmount * 5;
       const pulse = playing ? (Math.sin(index * 0.72 + phase) + 1) * 3.5 : 0;
       const innerRadius = baseRadius - 5;
-      const outerRadius = playing
-        ? baseRadius + (focused
-          ? 16 + pulse + biasAmount * 12
-          : 13 + pulse * 0.25 - biasAmount * 7)
-        : baseRadius + 9;
+      const outerRadius = playing ? baseRadius + 15 + pulse + sideGain : baseRadius + 9;
 
       context.beginPath();
-      context.setLineWidth(focused && playing ? 4 : 3);
-      context.setStrokeStyle(playing && focused ? "#747dff" : "#c8cad3");
+      context.setLineWidth(playing ? 4 : 3);
+      context.setStrokeStyle(playing ? ringColor : "#c8cad3");
       context.moveTo(
         center + Math.cos(angle) * innerRadius,
         center + Math.sin(angle) * innerRadius
@@ -368,6 +406,31 @@ Page({
     return Array.from(new Uint8Array(buffer))
       .map((value) => String.fromCharCode(value))
       .join("");
+  },
+
+  encodeAscii(text) {
+    const buffer = new ArrayBuffer(text.length);
+    const bytes = new Uint8Array(buffer);
+    for (let index = 0; index < text.length; index += 1) {
+      bytes[index] = text.charCodeAt(index);
+    }
+    return buffer;
+  },
+
+  async syncThresholds() {
+    if (!this.deviceId || !this.serviceId || !this.characteristicId) return;
+    const command = `C,${this.data.speedThreshold},${this.data.ppbThreshold}`;
+    try {
+      await this.wxCall("writeBLECharacteristicValue", {
+        deviceId: this.deviceId,
+        serviceId: this.serviceId,
+        characteristicId: this.characteristicId,
+        value: this.encodeAscii(command)
+      });
+      this.addLog(`阈值已同步到电脑: ${command}`);
+    } catch (error) {
+      this.addLog(`阈值同步失败: ${error.errMsg || error}`);
+    }
   },
 
   wxCall(method, options = {}) {

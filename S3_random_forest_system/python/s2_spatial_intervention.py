@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.widgets import Button
 import numpy as np
+from serial.tools import list_ports
 
 import realtime_dual_mpu6050_detection as c3
 
@@ -32,6 +33,29 @@ STATE_LAYERS = {
 }
 S2_STATE_VALUES = {"pause": 0, "normal": 1, "stable": 2, "fast": 3}
 S2_STATE_LABELS = ["pause", "normal", "stable", "fast"]
+
+
+def resolve_serial_port(requested_port: str) -> str:
+    if requested_port.lower() != "auto":
+        return requested_port
+
+    ports = list(list_ports.comports())
+    usb_ports = [
+        port for port in ports
+        if "BTHENUM" not in str(port.hwid).upper()
+        and ("USB" in str(port.hwid).upper() or "USB" in str(port.description).upper())
+    ]
+    xiao_ports = [port for port in usb_ports if port.vid == 0x303A]
+    candidates = xiao_ports or usb_ports
+    if len(candidates) == 1:
+        selected = candidates[0]
+        print(f"Auto-selected sensor USB serial port: {selected.device} ({selected.description})")
+        return selected.device
+    if not candidates:
+        available = ", ".join(f"{port.device} ({port.description})" for port in ports) or "none"
+        raise RuntimeError(f"No USB serial sensor found. Available ports: {available}")
+    available = ", ".join(f"{port.device} ({port.description})" for port in candidates)
+    raise RuntimeError(f"Multiple USB serial ports found. Select one with --port. Candidates: {available}")
 
 
 class MusicLayerPlayer:
@@ -126,6 +150,31 @@ class MusicLayerPlayer:
             pygame.mixer.quit()
         except Exception:
             pass
+
+
+class PhoneOnlyMusicPlayer:
+    """Keep intervention audio state without playing anything on the computer."""
+
+    def __init__(self) -> None:
+        self.active_layers = set()
+        self.pan = 0.0
+
+    def start(self) -> None:
+        print("Audio output: phone only. Computer music and cue playback are disabled.")
+
+    def set_active_layers(self, active_layers: set[str], pan: Optional[float] = None) -> None:
+        self.active_layers = set(active_layers)
+        if pan is not None:
+            self.pan = float(np.clip(pan, -1.0, 1.0))
+
+    def set_pan(self, pan: float) -> None:
+        self.pan = float(np.clip(pan, -1.0, 1.0))
+
+    def play_cue(self, cue: str) -> bool:
+        return cue in CUE_NAMES
+
+    def stop(self) -> None:
+        pass
 
 
 class InterventionState:
@@ -515,7 +564,37 @@ def format_layers(active_layers: set[str]) -> str:
     return "+".join(sorted(active_layers)) or "none"
 
 
-def send_ble_ui_summary(ser, detection: dict, intervention_result: dict, ppb_result: dict, enabled: bool) -> None:
+def handle_ble_control_message(raw: str, intervention: InterventionState, ppb: PPBState) -> bool:
+    text = raw.strip()
+    if not text.startswith("C,"):
+        return False
+    fields = text.split(",")
+    if len(fields) != 3:
+        print(f"BLE control ignored: {text}")
+        return True
+    try:
+        fast_cpm = float(fields[1])
+        ppb_seconds = float(fields[2])
+    except ValueError:
+        print(f"BLE control ignored: {text}")
+        return True
+    intervention.fast_cpm_threshold = float(np.clip(fast_cpm, 30.0, 180.0))
+    ppb.threshold_seconds = float(np.clip(ppb_seconds, 1.0, 10.0))
+    print(
+        f"BLE thresholds updated: fast={intervention.fast_cpm_threshold:.1f} CPM, "
+        f"PPB={ppb.threshold_seconds:.1f}s"
+    )
+    return True
+
+
+def send_ble_ui_summary(
+    ser,
+    detection: dict,
+    intervention_result: dict,
+    ppb_result: dict,
+    pan: float,
+    enabled: bool,
+) -> None:
     if not enabled:
         return
     chewing = 1 if detection.get("state") == "chewing" else 0
@@ -533,6 +612,15 @@ def send_ble_ui_summary(ser, detection: dict, intervention_result: dict, ppb_res
         "too_short": "T",
     }.get(str(ppb_result.get("ppb_state", "")), "-")
     ser.write(f"U,{chewing},{cpm},{side},{stability},{ppb_tenths},{ppb_state}\n".encode("ascii"))
+
+    state = {"pause": "P", "normal": "N", "stable": "S", "fast": "F"}.get(
+        str(intervention_result.get("intervention_state", "")), "P"
+    )
+    layer_bits = {"background": 1, "bass": 2, "drum": 4, "melody": 8}
+    layer_mask = sum(layer_bits.get(layer, 0) for layer in intervention_result.get("active_layers", set()))
+    pan_percent = int(np.clip(round(float(pan) * 100.0), -100, 100))
+    cue = {"pop": "O", "ding": "D", "error": "E"}.get(str(ppb_result.get("cue", "-")), "-")
+    ser.write(f"M,{state},{pan_percent},{layer_mask},{cue}\n".encode("ascii"))
 
 
 def run_terminal_loop(
@@ -560,6 +648,8 @@ def run_terminal_loop(
 
     while True:
         raw = ser.readline().decode("utf-8", errors="ignore")
+        if handle_ble_control_message(raw, intervention, ppb):
+            continue
         sample = c3.parse_dual_imu_csv_line(raw)
         if sample is None:
             continue
@@ -587,7 +677,7 @@ def run_terminal_loop(
         spatial.update_from_detection(detection, now_s)
         pan = spatial.tick(now_s)
         player.set_active_layers(intervention_result["active_layers"], pan)
-        send_ble_ui_summary(ser, detection, intervention_result, ppb_result, not args.disable_ble_ui)
+        send_ble_ui_summary(ser, detection, intervention_result, ppb_result, pan, not args.disable_ble_ui)
 
         print(
             f"S3={detection['state']:12s} side={detection['side']:15s} "
@@ -721,7 +811,10 @@ def run_visual_loop(
             if ser.in_waiting <= 0:
                 break
 
-            sample = c3.parse_dual_imu_csv_line(ser.readline().decode("utf-8", errors="ignore"))
+            raw = ser.readline().decode("utf-8", errors="ignore")
+            if handle_ble_control_message(raw, intervention, ppb):
+                continue
+            sample = c3.parse_dual_imu_csv_line(raw)
             if sample is None:
                 continue
 
@@ -749,7 +842,7 @@ def run_visual_loop(
             spatial.update_from_detection(detection, now_s)
             pan = spatial.tick(now_s)
             player.set_active_layers(intervention_result["active_layers"], pan)
-            send_ble_ui_summary(ser, detection, intervention_result, ppb_result, not args.disable_ble_ui)
+            send_ble_ui_summary(ser, detection, intervention_result, ppb_result, pan, not args.disable_ble_ui)
             runtime["detection"] = detection
             runtime["intervention"] = intervention_result
             runtime["ppb"] = ppb_result
@@ -818,7 +911,7 @@ def run_visual_loop(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="S3 RF chewing music intervention system.")
-    parser.add_argument("--port", default="COM4")
+    parser.add_argument("--port", default="auto", help="Sensor USB serial port, or auto to detect the XIAO ESP32-S3.")
     parser.add_argument("--baud", type=int, default=115200)
     parser.add_argument("--sample-rate", type=int, default=100)
     parser.add_argument("--window-seconds", type=float, default=2.0)
@@ -886,8 +979,13 @@ def main() -> None:
         print(f"S3 RF model is off or missing: {args.chewing_state_model}")
         print(f"Loaded fallback threshold gate: {args.chewing_threshold_config}")
 
-    player = MusicLayerPlayer(args.music_dir, args.active_volume, args.inactive_volume)
-    player.start()
+    if args.test_ppb_cue or args.test_music_state:
+        player = MusicLayerPlayer(args.music_dir, args.active_volume, args.inactive_volume)
+        player.start()
+    else:
+        player = PhoneOnlyMusicPlayer()
+        player.start()
+
     if args.test_ppb_cue:
         print(f"Testing PPB cue={args.test_ppb_cue}, duration={args.test_music_seconds:.1f}s")
         try:
@@ -929,6 +1027,7 @@ def main() -> None:
         end_debounce_seconds=args.ppb_end_debounce_seconds,
         cues_enabled=not args.disable_ppb_cues,
     )
+    args.port = resolve_serial_port(args.port)
     ser = c3.open_serial_port(args.port, args.baud)
 
     try:

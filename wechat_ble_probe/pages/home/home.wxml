@@ -56,11 +56,24 @@
     class="onboarding-backdrop"
     catchtouchmove="stopOnboardingTouch"
   >
-    <image
-      class="onboarding-art"
-      src="{{onboardingModal}}"
-      mode="aspectFill"
-    ></image>
-    <view class="onboarding-start-hit" bindtap="startAssessment"></view>
+    <view class="assessment-card">
+      <view class="assessment-kicker">First, let’s understand your natural eating rhythm!</view>
+      <view class="assessment-title">Assessment Explanation</view>
+      <view class="assessment-copy">Everyone chews differently. Before providing guidance, we need to understand which rhythm truly works for you.</view>
+
+      <view class="assessment-item">
+        <view class="assessment-icon">♜</view>
+        <view>Eat naturally: Follow your usual eating habits without deliberately slowing down</view>
+      </view>
+      <view class="assessment-item">
+        <view class="assessment-icon muted-icon">⌁</view>
+        <view>No-intervention recording: No music feedback or rhythm prompts will play during testing</view>
+      </view>
+      <view class="assessment-item">
+        <view class="assessment-icon">▱</view>
+        <view>Receive personalized goals: AI will recommend chewing-rate and pause-between-bites targets based on your data</view>
+      </view>
+      <button class="assessment-start" bindtap="startAssessment">Start</button>
+    </view>
   </view>
 </view>
