@@ -37,12 +37,19 @@
 const unsigned long SAMPLE_INTERVAL_US = 10000;  // 100 Hz
 unsigned long lastSampleUs = 0;
 unsigned long lastHeartbeatMs = 0;
+unsigned long lastNotifyMs = 0;
 
 BLEServer *bleServer = nullptr;
 BLECharacteristic *uiDataCharacteristic = nullptr;
 bool phoneConnected = false;
 char computerMessage[96];
 size_t computerMessageLength = 0;
+const size_t NOTIFY_QUEUE_SIZE = 8;
+const unsigned long NOTIFY_INTERVAL_MS = 35;
+char notifyQueue[NOTIFY_QUEUE_SIZE][96];
+size_t notifyQueueHead = 0;
+size_t notifyQueueTail = 0;
+size_t notifyQueueCount = 0;
 
 struct ImuSample {
   float ax;
@@ -61,6 +68,9 @@ class ServerCallbacks : public BLEServerCallbacks {
 
   void onDisconnect(BLEServer *server) override {
     phoneConnected = false;
+    notifyQueueHead = 0;
+    notifyQueueTail = 0;
+    notifyQueueCount = 0;
     Serial.println("BLE: Phone disconnected");
     delay(100);
     server->startAdvertising();
@@ -69,17 +79,40 @@ class ServerCallbacks : public BLEServerCallbacks {
 
 class UiDataCallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *characteristic) override {
-    std::string value = characteristic->getValue();
-    if (value.rfind("C,", 0) == 0 && value.length() < 48) {
-      Serial.println(value.c_str());
+    String value = characteristic->getValue();
+    if (value.startsWith("C,") && value.length() < 48) {
+      Serial.println(value);
     }
   }
 };
 
-void notifyPhone(const char *message) {
-  if (!phoneConnected || uiDataCharacteristic == nullptr) return;
+void enqueuePhoneMessage(const char *message) {
+  if (!phoneConnected || message == nullptr) return;
+  if (notifyQueueCount >= NOTIFY_QUEUE_SIZE) {
+    notifyQueueHead = (notifyQueueHead + 1) % NOTIFY_QUEUE_SIZE;
+    notifyQueueCount--;
+  }
+  strncpy(notifyQueue[notifyQueueTail], message, sizeof(notifyQueue[notifyQueueTail]) - 1);
+  notifyQueue[notifyQueueTail][sizeof(notifyQueue[notifyQueueTail]) - 1] = '\0';
+  notifyQueueTail = (notifyQueueTail + 1) % NOTIFY_QUEUE_SIZE;
+  notifyQueueCount++;
+}
+
+void flushPhoneNotifications() {
+  if (
+    !phoneConnected ||
+    uiDataCharacteristic == nullptr ||
+    notifyQueueCount == 0 ||
+    millis() - lastNotifyMs < NOTIFY_INTERVAL_MS
+  ) {
+    return;
+  }
+  lastNotifyMs = millis();
+  const char *message = notifyQueue[notifyQueueHead];
   uiDataCharacteristic->setValue((uint8_t *)message, strlen(message));
   uiDataCharacteristic->notify();
+  notifyQueueHead = (notifyQueueHead + 1) % NOTIFY_QUEUE_SIZE;
+  notifyQueueCount--;
 }
 
 void setupBLE() {
@@ -117,7 +150,7 @@ void readComputerMessages() {
         (computerMessage[0] == 'U' || computerMessage[0] == 'M') &&
         computerMessage[1] == ','
       ) {
-        notifyPhone(computerMessage);
+        enqueuePhoneMessage(computerMessage);
       }
       computerMessageLength = 0;
     } else if (value != '\r') {
@@ -135,7 +168,7 @@ void sendBleHeartbeat() {
   lastHeartbeatMs = millis();
   char heartbeat[20];
   snprintf(heartbeat, sizeof(heartbeat), "H,%lu", lastHeartbeatMs);
-  notifyPhone(heartbeat);
+  enqueuePhoneMessage(heartbeat);
 }
 
 int16_t toInt16BE(uint8_t high, uint8_t low) {
@@ -271,6 +304,7 @@ void setup() {
 
 void loop() {
   readComputerMessages();
+  flushPhoneNotifications();
   sendBleHeartbeat();
 
   unsigned long nowUs = micros();

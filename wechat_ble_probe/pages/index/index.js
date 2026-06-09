@@ -2,6 +2,7 @@ const SERVICE_UUID = "7b100001-7c6a-4d91-a461-9c987d97b100";
 const UI_DATA_UUID = "7b100002-7c6a-4d91-a461-9c987d97b100";
 const DEVICE_NAMES = ["ChewTune-S2", "ChewTune-S3"];
 const MusicFeedback = require("../../utils/music-feedback");
+const MealRecorder = require("../../utils/meal-recorder");
 
 const SIDE_LABELS = { L: "左侧", R: "右侧", B: "双侧", "-": "等待检测" };
 const PPB_LABELS = {
@@ -48,6 +49,7 @@ Page({
 
   onLoad(options) {
     this.resetSessionStats();
+    this.mealRecorder = new MealRecorder((message) => this.addLog(message));
     const assessmentMode = Boolean(options && options.assessment === "1");
     this.setData({
       speedThreshold: Number(wx.getStorageSync("chewtuneSpeedThreshold")) || 86,
@@ -65,6 +67,7 @@ Page({
   },
 
   onReady() {
+    this.addLog("Audio runtime: phone-only-v4");
     const app = getApp();
     this.musicFeedback = app.globalData.musicFeedback || new MusicFeedback(() => {}, () => {});
     app.globalData.musicFeedback = this.musicFeedback;
@@ -88,9 +91,15 @@ Page({
     );
     this.musicFeedback.prepare();
     this.ringPhase = 0;
+    this.ringBias = 0;
+    this.ringBiasTarget = 0;
     this.drawMusicRing();
     this.ringTimer = setInterval(() => {
       this.ringPhase += 0.22;
+      const target = this.ringBiasTarget || 0;
+      const current = this.ringBias || 0;
+      const next = current + (target - current) * 0.07;
+      this.ringBias = Math.abs(target - next) < 0.002 ? target : next;
       this.drawMusicRing();
     }, 120);
   },
@@ -108,6 +117,9 @@ Page({
       this.musicFeedback.destroy();
       getApp().globalData.musicFeedback = null;
       this.musicFeedback = null;
+    }
+    if (this.mealRecorder && (this.mealRecorder.sessionId || this.mealRecorder.starting)) {
+      this.mealRecorder.finish({ reason: "page_unload" }, "interrupted").catch(() => {});
     }
     this.stop();
   },
@@ -152,7 +164,7 @@ Page({
     this.lastReportPpbCode = ppbCode;
   },
 
-  finishOrConnect() {
+  async finishOrConnect() {
     if (this.data.statusClass !== "connected") {
       this.toggleConnection();
       return;
@@ -168,9 +180,41 @@ Page({
     const recommendedPpb = Math.max(2, Math.min(8, avgPpb || 4));
     const balanceScore = 100 - Math.abs(50 - leftPercent) * 2;
     const score = Math.max(0, Math.min(100, Math.round(normalPercent * 0.75 + balanceScore * 0.25)));
+    const summary = {
+      score,
+      durationSeconds: duration,
+      normalPercent,
+      leftPercent,
+      rightPercent: 100 - leftPercent,
+      avgCpm: Number(avgCpm.toFixed(1)),
+      avgPpb: Number(avgPpb.toFixed(1)),
+      recommendedCpm,
+      recommendedPpb: Number(recommendedPpb.toFixed(1)),
+      thresholds: {
+        cpm: this.data.speedThreshold,
+        ppbSeconds: this.data.ppbThreshold
+      }
+    };
+    if (this.mealRecorder) {
+      try {
+        await this.mealRecorder.finish(summary);
+      } catch (error) {
+        this.addLog(`云端餐次结束失败: ${error.errMsg || error}`);
+      }
+    }
     this.stop();
+    wx.setStorageSync("chewtunePendingReport", {
+      duration,
+      normal: normalPercent,
+      left: leftPercent,
+      ppb: avgPpb.toFixed(1),
+      score,
+      assessment: this.data.assessmentMode ? 1 : 0,
+      recommendedCpm,
+      recommendedPpb: recommendedPpb.toFixed(1)
+    });
     wx.navigateTo({
-      url: `/pages/report/report?duration=${duration}&normal=${normalPercent}&left=${leftPercent}&ppb=${avgPpb.toFixed(1)}&score=${score}&assessment=${this.data.assessmentMode ? 1 : 0}&recommendedCpm=${recommendedCpm}&recommendedPpb=${recommendedPpb.toFixed(1)}`
+      url: "/pages/streak/streak"
     });
   },
 
@@ -201,8 +245,8 @@ Page({
   },
 
   toggleConnection() {
-    if (!this.data.assessmentMode && this.musicFeedback && !this.data.audioUnlocked) {
-      this.musicFeedback.unlockAudio();
+    if (!this.data.assessmentMode && this.musicFeedback) {
+      this.musicFeedback.resumeFromUserGesture();
       this.musicFeedback.setEnabled(true);
       this.setData({ audioUnlocked: true, musicEnabled: true });
     }
@@ -282,6 +326,16 @@ Page({
       await this.syncThresholds();
       this.setData({ status: "实时同步中", statusClass: "connected" });
       this.resetSessionStats();
+      if (this.mealRecorder) {
+        this.mealRecorder.start({
+          mode: this.data.assessmentMode ? "assessment" : "intervention",
+          deviceName: device.name || device.localName || "ChewTune",
+          thresholds: {
+            cpm: this.data.speedThreshold,
+            ppbSeconds: this.data.ppbThreshold
+          }
+        }).catch(() => {});
+      }
       this.addLog(`已连接 ${device.name || device.localName}`);
     } catch (error) {
       this.fail("连接失败", error);
@@ -320,6 +374,16 @@ Page({
     const ppbNumber = (Number(ppbTenths) || 0) / 10;
     const stability = Number(stabilityValue) || 0;
     this.recordSessionSample(chewing, cpm, sideCode, ppbNumber, ppbCode);
+    if (this.mealRecorder) {
+      this.mealRecorder.record({
+        chewing,
+        cpm,
+        side: sideCode,
+        stability,
+        ppbSeconds: ppbNumber,
+        ppbState: ppbCode
+      });
+    }
     this.setData({
       chewing,
       chewingLabel: chewing ? "正在咀嚼" : ppbCode === "R" ? "呼吸一下，准备下一口" : "享受这一刻",
@@ -331,6 +395,49 @@ Page({
       ppbState: PPB_LABELS[ppbCode] || ppbCode,
       ppbCode,
       ppbProgress: Math.min(100, Math.round((ppbNumber / this.data.ppbThreshold) * 100))
+    }, () => this.drawMusicRing());
+    this.updateFallbackRingBias(sideCode);
+    this.applyFallbackMusicDecision(chewing, cpm, stability);
+  },
+
+  updateFallbackRingBias(sideCode) {
+    if (this.lastMusicDecisionAt && Date.now() - this.lastMusicDecisionAt < 2500) return;
+    const target = this.ringBiasTarget || 0;
+    if (sideCode === "L") {
+      this.ringBiasTarget = Math.max(-1, target - 0.08);
+    } else if (sideCode === "R") {
+      this.ringBiasTarget = Math.min(1, target + 0.08);
+    } else {
+      this.ringBiasTarget = target * 0.96;
+    }
+  },
+
+  applyFallbackMusicDecision(chewing, cpm, stability) {
+    if (
+      this.data.assessmentMode ||
+      !this.musicFeedback ||
+      (this.lastMusicDecisionAt && Date.now() - this.lastMusicDecisionAt < 2500)
+    ) {
+      return;
+    }
+    const state = !chewing
+      ? "pause"
+      : cpm > this.data.speedThreshold
+        ? "fast"
+        : stability >= 50
+          ? "stable"
+          : "normal";
+    const activeMask = this.musicFeedback.applyDecision(state, 0);
+    if (this.mealRecorder) this.mealRecorder.updateMusic(state, activeMask, this.ringBiasTarget || 0);
+    const decisionKey = `fallback:${state}:${activeMask}`;
+    if (decisionKey !== this.lastLoggedMusicDecision) {
+      this.lastLoggedMusicDecision = decisionKey;
+      this.addLog(`Music fallback: ${state}, active=${activeMask}`);
+    }
+    this.setData({
+      musicState: state,
+      musicDecisionStatus: `phone fallback ${state} · active ${activeMask}`,
+      paceClass: state === "fast" ? "fast" : state !== "pause" ? "active" : "calm"
     }, () => this.drawMusicRing());
   },
 
@@ -344,16 +451,23 @@ Page({
     const pan = Math.max(-1, Math.min(1, (Number(fields[2]) || 0) / 100));
     const layerMask = Number(fields[3]) || 0;
     const cue = { O: "pop", D: "ding", E: "error" }[fields[4]] || "";
+    const effectiveLayerMask = this.data.assessmentMode || !this.musicFeedback
+      ? layerMask
+      : this.musicFeedback.applyDecision(state, layerMask);
+    const decisionKey = `${state}:${layerMask}:${effectiveLayerMask}`;
+    if (decisionKey !== this.lastLoggedMusicDecision) {
+      this.lastLoggedMusicDecision = decisionKey;
+      this.addLog(`Music decision: ${state}, received=${layerMask}, active=${effectiveLayerMask}`);
+    }
     this.lastMusicDecisionAt = Date.now();
-    const currentBias = this.ringBias || 0;
-    this.ringBias = currentBias + (pan - currentBias) * 0.35;
+    this.ringBiasTarget = pan;
+    if (this.mealRecorder) this.mealRecorder.updateMusic(state, effectiveLayerMask, pan);
     this.setData({
       musicState: state,
       musicDecisionStatus: `computer ${state} · layers ${layerMask} · pan ${fields[2]}`,
       paceClass: !this.data.assessmentMode && state === "fast" ? "fast" : !this.data.assessmentMode && state !== "pause" ? "active" : "calm"
     }, () => this.drawMusicRing());
     if (this.data.assessmentMode || !this.musicFeedback) return;
-    this.musicFeedback.applyDecision(state, layerMask);
     if (cue) this.musicFeedback.playCue(cue);
   },
 
@@ -368,6 +482,8 @@ Page({
     const biasAmount = Math.abs(bias);
     const phase = this.ringPhase || 0;
     const ringColor = this.data.paceClass === "fast" ? "#f39a45" : "#747dff";
+    const inactiveColor = "#c8cad3";
+    const oppositeFade = Math.max(0, Math.min(1, (biasAmount - 0.45) / 0.35));
 
     context.clearRect(0, 0, size, size);
     context.setLineCap("round");
@@ -376,18 +492,24 @@ Page({
       const angle = (index / segmentCount) * Math.PI * 2 - Math.PI / 2;
       const onLeft = Math.cos(angle) < 0;
       const sideDirection = onLeft ? -1 : 1;
+      const isFavoredSide = biasAmount < 0.03 || sideDirection === Math.sign(bias);
       const sideGain = biasAmount < 0.04
         ? 0
-        : sideDirection === Math.sign(bias)
-          ? biasAmount * 14
-          : -biasAmount * 5;
+        : isFavoredSide
+          ? biasAmount * 22
+          : -biasAmount * 3;
       const pulse = playing ? (Math.sin(index * 0.72 + phase) + 1) * 3.5 : 0;
       const innerRadius = baseRadius - 5;
       const outerRadius = playing ? baseRadius + 15 + pulse + sideGain : baseRadius + 9;
+      const segmentColor = playing
+        ? isFavoredSide
+          ? ringColor
+          : this.mixRingColor(ringColor, inactiveColor, oppositeFade)
+        : inactiveColor;
 
       context.beginPath();
       context.setLineWidth(playing ? 4 : 3);
-      context.setStrokeStyle(playing ? ringColor : "#c8cad3");
+      context.setStrokeStyle(segmentColor);
       context.moveTo(
         center + Math.cos(angle) * innerRadius,
         center + Math.sin(angle) * innerRadius
@@ -400,6 +522,18 @@ Page({
     }
 
     context.draw();
+  },
+
+  mixRingColor(from, to, amount) {
+    const ratio = Math.max(0, Math.min(1, amount));
+    const fromRgb = [1, 3, 5].map((index) => parseInt(from.slice(index, index + 2), 16));
+    const toRgb = [1, 3, 5].map((index) => parseInt(to.slice(index, index + 2), 16));
+    const mixed = fromRgb.map((value, index) =>
+      Math.round(value + (toRgb[index] - value) * ratio)
+        .toString(16)
+        .padStart(2, "0")
+    );
+    return `#${mixed.join("")}`;
   },
 
   decodeAscii(buffer) {

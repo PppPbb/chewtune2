@@ -1,0 +1,296 @@
+page {
+  height: 100%;
+  background: #eef0ff;
+}
+
+.streak-page {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  padding: 100rpx 48rpx 70rpx;
+  background: #eef0ff;
+}
+
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(218, 221, 255, 0.52);
+}
+
+.bubble-a { width: 240rpx; height: 240rpx; top: 115rpx; right: 58rpx; }
+.bubble-b { width: 260rpx; height: 260rpx; top: 520rpx; left: -95rpx; }
+.bubble-c { width: 230rpx; height: 230rpx; top: 760rpx; right: -80rpx; }
+.bubble-d { width: 245rpx; height: 245rpx; bottom: 345rpx; left: -70rpx; }
+
+.rays {
+  position: absolute;
+  width: 640rpx;
+  height: 640rpx;
+  left: 50%;
+  top: 170rpx;
+  transform: translateX(-50%) scale(0.6);
+  opacity: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(255, 255, 255, 0.86) 0deg 10deg,
+    transparent 10deg 25deg
+  );
+  transition: opacity 500ms ease, transform 800ms cubic-bezier(.2,.9,.2,1);
+}
+
+.achievement {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 185rpx;
+}
+
+.star-wrap {
+  position: relative;
+  width: 270rpx;
+  height: 230rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: scale(0.05) rotate(-35deg);
+  opacity: 0;
+  transition: transform 720ms cubic-bezier(.15,1.35,.35,1), opacity 180ms ease;
+}
+
+.star {
+  position: relative;
+  z-index: 2;
+  color: #7f86ff;
+  font-size: 245rpx;
+  line-height: 1;
+  text-shadow: 0 0 0 #fff, 0 12rpx 25rpx rgba(89, 98, 221, 0.28);
+  -webkit-text-stroke: 10rpx #fff;
+}
+
+.star-glow {
+  position: absolute;
+  width: 180rpx;
+  height: 180rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  filter: blur(18rpx);
+}
+
+.spark {
+  position: absolute;
+  width: 18rpx;
+  height: 18rpx;
+  border-radius: 50%;
+  background: #9298ff;
+  opacity: 0;
+}
+
+.spark-a { left: 0; top: 50rpx; }
+.spark-b { right: 5rpx; top: 25rpx; }
+.spark-c { right: 20rpx; bottom: 20rpx; }
+
+.streak-number {
+  margin-top: 5rpx;
+  color: #737bf3;
+  font-size: 190rpx;
+  line-height: 0.95;
+  font-weight: 800;
+  transform: translateY(40rpx);
+  opacity: 0;
+  transition: opacity 450ms ease, transform 550ms cubic-bezier(.2,.9,.2,1);
+}
+
+.streak-label {
+  margin-top: 22rpx;
+  color: #646ee8;
+  font-size: 62rpx;
+  line-height: 1;
+  font-weight: 700;
+  transform: translateY(25rpx);
+  opacity: 0;
+  transition: opacity 450ms ease 120ms, transform 550ms ease 120ms;
+}
+
+.celebration-character {
+  position: absolute;
+  z-index: 4;
+  width: 225rpx;
+  height: 190rpx;
+  top: 65rpx;
+  left: 30rpx;
+  transform: translate(-220rpx, -120rpx) rotate(-20deg) scale(0.5);
+  opacity: 0;
+  transition: transform 850ms cubic-bezier(.15,1.2,.3,1), opacity 250ms ease;
+}
+
+.week-card {
+  position: absolute;
+  z-index: 3;
+  left: 48rpx;
+  right: 48rpx;
+  bottom: 235rpx;
+  box-sizing: border-box;
+  min-height: 255rpx;
+  padding: 44rpx 34rpx 35rpx;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.94);
+  transform: translateY(100rpx);
+  opacity: 0;
+  transition: transform 650ms cubic-bezier(.2,.9,.2,1), opacity 450ms ease;
+}
+
+.week-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.day {
+  width: 70rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14rpx;
+}
+
+.day-label {
+  color: #aaa;
+  font-size: 25rpx;
+  font-weight: 700;
+}
+
+.day-label.today {
+  color: #737bf3;
+}
+
+.day-mark {
+  position: relative;
+  width: 45rpx;
+  height: 45rpx;
+  transform: scale(0.1);
+  transition: transform 500ms cubic-bezier(.2,1.4,.3,1);
+}
+
+.petal {
+  position: absolute;
+  width: 27rpx;
+  height: 27rpx;
+  border-radius: 50%;
+  background: #d7d7d7;
+}
+
+.petal-a { left: 0; top: 0; }
+.petal-b { right: 0; top: 0; }
+.petal-c { left: 0; bottom: 0; }
+.petal-d { right: 0; bottom: 0; }
+.done.pink .petal { background: #ff9da8; }
+.done.green .petal { background: #8fe583; }
+.done.orange .petal { background: #ffbd91; }
+.done.purple .petal { background: #9b9fff; }
+
+.week-copy {
+  margin-top: 38rpx;
+  color: #8c8c92;
+  font-size: 28rpx;
+  text-align: center;
+}
+
+.report-button {
+  position: absolute;
+  z-index: 4;
+  left: 215rpx;
+  right: 215rpx;
+  bottom: 75rpx;
+  height: 92rpx;
+  padding: 0 18rpx 0 48rpx;
+  border: 0;
+  border-radius: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #fff;
+  background: linear-gradient(135deg, #7e86ff, #aaaaff);
+  box-shadow: 0 16rpx 30rpx rgba(103, 111, 235, 0.22);
+  font-size: 32rpx;
+  opacity: 0;
+  transform: translateY(60rpx);
+  transition: opacity 400ms ease, transform 550ms cubic-bezier(.2,.9,.2,1);
+}
+
+.report-button::after { border: 0; }
+
+.report-arrow {
+  width: 65rpx;
+  height: 65rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  color: #7b83f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 65rpx;
+  line-height: 1;
+}
+
+.stage-1 .star-wrap,
+.stage-2 .star-wrap,
+.stage-3 .star-wrap,
+.stage-4 .star-wrap {
+  transform: scale(1) rotate(0deg);
+  opacity: 1;
+}
+
+.stage-1 .spark,
+.stage-2 .spark,
+.stage-3 .spark,
+.stage-4 .spark {
+  animation: sparkle 900ms ease-out 1;
+}
+
+.stage-2 .streak-number,
+.stage-2 .streak-label,
+.stage-3 .streak-number,
+.stage-3 .streak-label,
+.stage-4 .streak-number,
+.stage-4 .streak-label {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.stage-3 .rays,
+.stage-4 .rays {
+  opacity: 0.78;
+  transform: translateX(-50%) scale(1);
+}
+
+.stage-3 .celebration-character,
+.stage-4 .celebration-character {
+  transform: translate(0, 0) rotate(8deg) scale(1);
+  opacity: 1;
+}
+
+.stage-3 .week-card,
+.stage-4 .week-card {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.stage-3 .day-mark,
+.stage-4 .day-mark {
+  transform: scale(1);
+}
+
+.stage-4 .report-button {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes sparkle {
+  0% { transform: scale(0.1); opacity: 0; }
+  45% { transform: scale(1.6); opacity: 1; }
+  100% { transform: scale(0.2); opacity: 0; }
+}

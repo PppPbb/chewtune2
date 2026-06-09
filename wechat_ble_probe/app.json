@@ -4,6 +4,7 @@
     "pages/home/home",
     "pages/tutorial/tutorial",
     "pages/index/index",
+    "pages/streak/streak",
     "pages/report/report"
   ],
   "window": {

@@ -1,0 +1,41 @@
+<view class="streak-page stage-{{stage}}">
+  <view class="bubble bubble-a"></view>
+  <view class="bubble bubble-b"></view>
+  <view class="bubble bubble-c"></view>
+  <view class="bubble bubble-d"></view>
+  <view class="rays"></view>
+
+  <image class="celebration-character" src="{{characterImage}}" mode="aspectFit"></image>
+
+  <view class="achievement">
+    <view class="star-wrap">
+      <view class="star-glow"></view>
+      <text class="star">★</text>
+      <view class="spark spark-a"></view>
+      <view class="spark spark-b"></view>
+      <view class="spark spark-c"></view>
+    </view>
+    <view class="streak-number">{{displayStreak}}</view>
+    <view class="streak-label">day streak</view>
+  </view>
+
+  <view class="week-card">
+    <view class="week-row">
+      <view wx:for="{{weekDays}}" wx:key="index" class="day">
+        <text class="day-label {{item.today ? 'today' : ''}}">{{item.label}}</text>
+        <view class="day-mark {{item.completed ? 'done ' + item.color : 'empty'}}">
+          <view class="petal petal-a"></view>
+          <view class="petal petal-b"></view>
+          <view class="petal petal-c"></view>
+          <view class="petal petal-d"></view>
+        </view>
+      </view>
+    </view>
+    <view class="week-copy">Practice each day so your streak won’t reset</view>
+  </view>
+
+  <button class="report-button" bindtap="viewReport">
+    <text>View Report</text>
+    <view class="report-arrow">›</view>
+  </button>
+</view>

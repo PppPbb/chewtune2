@@ -6,6 +6,8 @@ const STATE_LAYERS = {
   stable: ["bass", "drum", "melody"],
   fast: ["background", "drum"]
 };
+const LAYER_BITS = { background: 1, bass: 2, drum: 4, melody: 8 };
+const KEEP_ALIVE_VOLUME = 0.001;
 
 class MusicFeedback {
   constructor(onError, onReady) {
@@ -100,15 +102,33 @@ class MusicFeedback {
   }
 
   unlockAudio() {
-    if (this.unlocked) return false;
+    const wasUnlocked = this.unlocked;
     this.unlocked = true;
-    this.startLayers();
-    return true;
+    this.resumeFromUserGesture();
+    return !wasUnlocked;
+  }
+
+  resumeFromUserGesture() {
+    this.unlocked = true;
+    this.layersStarted = true;
+    LAYERS.forEach((name) => {
+      const audio = this.layers[name];
+      if (!audio) return;
+      audio.volume = this.activeLayers.has(name) ? 0.72 : KEEP_ALIVE_VOLUME;
+      this.playLayer(name);
+    });
+    this.applyState();
   }
 
   startLayers() {
     if (this.layersStarted) return;
     this.layersStarted = true;
+    LAYERS.forEach((name) => {
+      const audio = this.layers[name];
+      if (!audio) return;
+      audio.volume = KEEP_ALIVE_VOLUME;
+      this.playLayer(name);
+    });
     this.applyState();
   }
 
@@ -135,15 +155,23 @@ class MusicFeedback {
 
   applyDecision(state, layerMask) {
     this.state = STATE_LAYERS[state] ? state : "pause";
-    this.layerMask = Number(layerMask) || 0;
+    const receivedMask = Number(layerMask) || 0;
+    this.layerMask = receivedMask || this.maskForState(this.state);
     this.applyState();
+    return this.layerMask;
+  }
+
+  maskForState(state) {
+    return (STATE_LAYERS[state] || []).reduce(
+      (mask, name) => mask | LAYER_BITS[name],
+      0
+    );
   }
 
   applyState() {
-    const layerBits = { background: 1, bass: 2, drum: 4, melody: 8 };
     const active = new Set(
       this.enabled && this.unlocked
-        ? LAYERS.filter((name) => (this.layerMask & layerBits[name]) !== 0)
+        ? LAYERS.filter((name) => (this.layerMask & LAYER_BITS[name]) !== 0)
         : []
     );
     LAYERS.forEach((name) => {
@@ -156,8 +184,8 @@ class MusicFeedback {
         if (audio.paused) this.playLayer(name);
         if (!wasActive) this.onError(`${name}: activated at volume ${audio.volume}`);
       } else {
-        audio.volume = 0;
-        if (!audio.paused) audio.pause();
+        audio.volume = this.unlocked ? KEEP_ALIVE_VOLUME : 0;
+        if (this.unlocked && audio.paused) this.playLayer(name);
         if (wasActive) this.onError(`${name}: deactivated`);
       }
     });

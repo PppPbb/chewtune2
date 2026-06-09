@@ -3,6 +3,7 @@
   "compileType": "miniprogram",
   "libVersion": "3.15.0",
   "miniprogramRoot": "./",
+  "cloudfunctionRoot": "cloudfunctions/",
   "setting": {
     "urlCheck": false,
     "es6": true,
@@ -30,7 +31,28 @@
   },
   "simulatorPluginLibVersion": {},
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "cloudfunctions"
+      },
+      {
+        "type": "file",
+        "value": "README.md"
+      },
+      {
+        "type": "file",
+        "value": "BLE_INTERVENTION_PROTOCOL.md"
+      },
+      {
+        "type": "file",
+        "value": "CLOUD_ASSETS_SETUP.md"
+      },
+      {
+        "type": "file",
+        "value": "CLOUD_DATABASE_SETUP.md"
+      }
+    ],
     "include": []
   },
   "editorSetting": {}
