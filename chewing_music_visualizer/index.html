@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChewTune Live Music Visualizer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="brand-row">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="eyebrow">CHEWTUNE LIVE SIMULATOR</span>
+        </div>
+        <h1>Chewing State & Music Layers</h1>
+      </div>
+      <div class="session-status">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Idle</span>
+      </div>
+    </header>
+
+    <section class="workspace">
+      <section class="visual-stage" aria-label="Chewing waveform visualization">
+        <div class="threshold-strip">
+          <div>
+            <span>CPM threshold</span>
+            <strong id="thresholdValue">90</strong>
+          </div>
+          <div class="strip-divider"></div>
+          <div>
+            <span>PPB target</span>
+            <strong id="ppbTargetValue">4.0s</strong>
+          </div>
+        </div>
+
+        <div class="ring-wrap">
+          <canvas id="ringCanvas" width="720" height="720"></canvas>
+          <div class="ring-center">
+            <strong id="cpmValue">0</strong>
+          </div>
+        </div>
+
+        <div class="metric-grid">
+          <article class="metric">
+            <span>Live chewing pace</span>
+            <div><strong id="metricCpm">0</strong><small>CPM</small></div>
+            <p id="paceHint">No active rhythm</p>
+          </article>
+          <article class="metric">
+            <span>Rhythm stability</span>
+            <div><strong id="stabilityValue">0.00</strong></div>
+            <p id="stabilityHint">Insufficient data</p>
+          </article>
+          <article class="metric">
+            <span>Chewing side</span>
+            <div><strong id="sideValue">Center</strong></div>
+            <p id="sideHint">Balanced</p>
+          </article>
+        </div>
+
+      </section>
+
+      <aside class="control-panel">
+        <section class="panel-section">
+          <div class="section-heading">
+            <div>
+              <span class="section-kicker">INPUT</span>
+              <h2>Keyboard Input</h2>
+            </div>
+            <button class="reset-button" id="resetButton" type="button">Reset</button>
+          </div>
+          <div class="key-grid">
+            <button class="key-control primary-key" id="chewButton" type="button">
+              <kbd>Space</kbd>
+              <span>Chew pulse</span>
+            </button>
+            <button class="key-control" id="leftButton" type="button">
+              <kbd>A</kbd>
+              <span>Left side</span>
+            </button>
+            <button class="key-control" id="rightButton" type="button">
+              <kbd>D</kbd>
+              <span>Right side</span>
+            </button>
+            <button class="key-control" id="centerButton" type="button">
+              <kbd>S</kbd>
+              <span>Center</span>
+            </button>
+            <button class="key-control" id="pauseButton" type="button">
+              <kbd>P</kbd>
+              <span>Pause / resume</span>
+            </button>
+          </div>
+          <div class="threshold-control">
+            <span>Adjust CPM threshold</span>
+            <div>
+              <button id="thresholdDown" type="button" aria-label="Lower threshold">−</button>
+              <strong id="thresholdControlValue">90</strong>
+              <button id="thresholdUp" type="button" aria-label="Raise threshold">+</button>
+            </div>
+            <small>Arrow keys ↑ / ↓</small>
+          </div>
+        </section>
+
+        <section class="panel-section music-section">
+          <div class="section-heading">
+            <div>
+              <span class="section-kicker">OUTPUT</span>
+              <h2>Music Feedback Layers</h2>
+            </div>
+            <span class="music-mode" id="musicMode">Paused</span>
+          </div>
+          <div class="layer-list">
+            <article class="music-layer" data-layer="melody">
+              <div class="layer-meta">
+                <span class="layer-icon">M</span>
+                <div><strong>Melody</strong><small>Primary melody</small></div>
+              </div>
+              <div class="level-bars"></div>
+            </article>
+            <article class="music-layer" data-layer="drum">
+              <div class="layer-meta">
+                <span class="layer-icon">D</span>
+                <div><strong>Drum</strong><small>Rhythm pulse</small></div>
+              </div>
+              <div class="level-bars"></div>
+            </article>
+            <article class="music-layer" data-layer="bass">
+              <div class="layer-meta">
+                <span class="layer-icon">B</span>
+                <div><strong>Bass</strong><small>Stability reward</small></div>
+              </div>
+              <div class="level-bars"></div>
+            </article>
+            <article class="music-layer" data-layer="background">
+              <div class="layer-meta">
+                <span class="layer-icon">N</span>
+                <div><strong>Background</strong><small>Fast-pace warning</small></div>
+              </div>
+              <div class="level-bars"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="legend">
+          <div><span class="legend-swatch purple"></span>Normal rhythm</div>
+          <div><span class="legend-swatch green"></span>Stable rhythm</div>
+          <div><span class="legend-swatch orange"></span>Above threshold</div>
+          <div><span class="legend-swatch gray"></span>Pause / idle</div>
+        </section>
+      </aside>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
