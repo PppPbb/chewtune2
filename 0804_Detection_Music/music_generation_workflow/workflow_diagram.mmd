@@ -1,0 +1,17 @@
+flowchart LR
+  A["用户输入<br/>music_preference<br/>intervention_goal"] --> B["权重计算<br/>clarity / smoothness<br/>foreground_activity / backgroundness"]
+  B --> C["Master Specification<br/>key / mode / chord<br/>drum pattern / loop / seed"]
+  C --> D["API Request 生成<br/>system_prompt<br/>user_prompt<br/>generation_params"]
+  D --> E["四层音乐生成<br/>background / melody<br/>drum / bass"]
+  E --> F["后处理与筛选<br/>alignment / loudness<br/>stem independence<br/>playback controllability"]
+  F --> G["音乐入库<br/>4 stems<br/>metadata / prompts<br/>playback_policy"]
+  G --> H["运行调度层<br/>volume / pan / filter<br/>crossfade / cue"]
+
+  subgraph S["四层基础 Stem"]
+    S1["background.wav"]
+    S2["melody.wav"]
+    S3["drum.wav"]
+    S4["bass.wav"]
+  end
+
+  E --> S

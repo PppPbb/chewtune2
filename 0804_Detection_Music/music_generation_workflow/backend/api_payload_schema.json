@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ChewTune Stem Generation Payload",
+  "type": "object",
+  "required": [
+    "job_type",
+    "api_version",
+    "library_id",
+    "music_preference",
+    "intervention_goal",
+    "style_weights",
+    "derived_weights",
+    "master_spec_brief",
+    "master_spec",
+    "stem_requests",
+    "postprocess_plan",
+    "retry_policy",
+    "fallback_policy",
+    "playback_policy"
+  ],
+  "properties": {
+    "job_type": { "const": "chewtune_stem_generation" },
+    "api_version": { "type": "string" },
+    "library_id": { "type": "string" },
+    "music_preference": {
+      "type": "object",
+      "required": ["smooth_clear", "foreground_activity"],
+      "properties": {
+        "smooth_clear": { "type": "number", "minimum": 0, "maximum": 1 },
+        "foreground_activity": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "intervention_goal": {
+      "type": "object",
+      "required": ["target_cpm", "training_goal"],
+      "properties": {
+        "target_cpm": { "type": "integer", "minimum": 80, "maximum": 120 },
+        "training_goal": {
+          "type": "array",
+          "items": { "enum": ["slow_down", "stable_rhythm"] }
+        }
+      }
+    },
+    "style_weights": {
+      "type": "object",
+      "required": ["smoothness", "clarity", "foreground_activity", "backgroundness"],
+      "properties": {
+        "smoothness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "clarity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "foreground_activity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "backgroundness": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "derived_weights": {
+      "type": "object",
+      "required": ["drum_clarity", "rhythmic_regularness"]
+    },
+    "master_spec_brief": { "type": "string" },
+    "master_spec": {
+      "type": "object",
+      "required": [
+        "generation_seed",
+        "master_logic",
+        "target_bpm",
+        "key",
+        "tonic",
+        "mode",
+        "scale",
+        "meter",
+        "loop_bars",
+        "chord_progression",
+        "harmonic_rhythm",
+        "drum_pattern",
+        "drum_density",
+        "downbeat_strength",
+        "percussion_timbre",
+        "syncopation_level",
+        "transient_sharpness",
+        "background_tension",
+        "background_presence_when_fast",
+        "sustained_tone_stability",
+        "downbeat",
+        "stem_start",
+        "loop_end"
+      ]
+    },
+    "stem_requests": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "required": ["stem", "system_prompt", "user_prompt", "generation_params", "output"],
+        "properties": {
+          "stem": { "enum": ["background", "melody", "drum", "bass"] },
+          "system_prompt": { "type": "string" },
+          "user_prompt": { "type": "string" },
+          "generation_params": { "type": "object" },
+          "output": {
+            "type": "object",
+            "required": ["filename", "format", "sample_rate", "channels", "loopable"],
+            "properties": {
+              "filename": { "type": "string" },
+              "format": { "const": "wav" },
+              "sample_rate": { "type": "integer" },
+              "channels": { "type": "integer" },
+              "loopable": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "postprocess_plan": {
+      "type": "object",
+      "required": ["alignment_check", "loudness_normalization", "stem_independence_check", "playback_controllability_check"]
+    },
+    "retry_policy": {
+      "type": "object",
+      "required": ["max_generation_attempts_per_stem", "retry_triggers", "retry_strategy", "preserve_across_retries"]
+    },
+    "fallback_policy": {
+      "type": "object",
+      "required": ["fallback_order", "default_safe_silence_with_cue", "cue_fallback"]
+    },
+    "playback_policy": {
+      "type": "object",
+      "required": ["mode", "controls", "cue_source", "presets"],
+      "properties": {
+        "mode": { "const": "parameter_modulation" },
+        "cue_source": {
+          "type": "object",
+          "required": ["type", "file", "available_cues"],
+          "properties": {
+            "type": { "const": "independent_cue_library" },
+            "file": { "const": "cue_library.json" }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "selection_rule": {
+    "description": "Generate one explicit master specification brief through constrained weighted sampling. The system samples from safe musical option pools, while user preference changes sampling weights and prompt word proportions.",
+    "randomness": "Use a stored generation_seed so the selected parameters are reproducible for the same library item.",
+    "hard_rule": "The final prompt must contain one explicit value for every parameter. Candidate pools are internal and must never be written as alternatives inside the generation prompt."
+  },
+  "preference_to_prompt_word_ratio": {
+    "description": "The four style weights determine how many descriptor words from each dimension are inserted into the prompt.",
+    "total_style_words": 12,
+    "formula": "word_count_i = max(1, round(weight_i / sum(weights) * total_style_words))",
+    "dimensions": ["clarity", "smoothness", "foreground_activity", "backgroundness"]
+  },
+  "master_specification_pools": {
+    "keys": [
+      { "tonic": "C", "key": "C major", "clear_bias": 0.72 },
+      { "tonic": "D", "key": "D major", "clear_bias": 0.86 },
+      { "tonic": "F", "key": "F major", "clear_bias": 0.55 },
+      { "tonic": "G", "key": "G major", "clear_bias": 0.76 },
+      { "tonic": "A", "key": "A major", "clear_bias": 0.9 }
+    ],
+    "modes": [
+      { "id": "major", "label": "major", "clarity_bias": 0.55, "smooth_bias": 0.45 },
+      { "id": "major_pentatonic", "label": "major pentatonic", "clarity_bias": 0.35, "smooth_bias": 0.75 },
+      { "id": "lydian_major", "label": "lydian-inflected major", "clarity_bias": 0.75, "smooth_bias": 0.35 }
+    ],
+    "chord_progressions": [
+      { "roman": "Imaj7 | V6 | vi7 | IVmaj7", "clear_bias": 0.55, "active_bias": 0.45 },
+      { "roman": "I6 | V6 | vi7 | IVmaj7", "clear_bias": 0.72, "active_bias": 0.35 },
+      { "roman": "Imaj7 | iii7 | IVmaj7 | V6", "clear_bias": 0.8, "active_bias": 0.5 },
+      { "roman": "I6 | IVmaj7 | V6 | Imaj7", "clear_bias": 0.45, "active_bias": 0.2 },
+      { "roman": "Imaj7 | vi7 | ii7 | V6", "clear_bias": 0.5, "active_bias": 0.72 }
+    ],
+    "harmonic_rhythm": [
+      { "value": "8 bars per chord; two chords per 16-bar loop", "background_bias": 0.86 },
+      { "value": "4 bars per chord; one full progression per 16-bar loop", "background_bias": 0.55 },
+      { "value": "2 bars per chord; two full progressions per 16-bar loop", "background_bias": 0.22 }
+    ],
+    "loop_bars": [8, 16, 32],
+    "fixed_alignment": {
+      "meter": "4/4",
+      "downbeat": "bar 1 beat 1, no pickup",
+      "stem_start": "0:00.000",
+      "loop_end": "exactly after selected final bar beat 4"
+    }
+  },
+  "preference_affected_master_parts": [
+    "mode sampling weight",
+    "chord progression sampling weight",
+    "harmonic rhythm sampling weight",
+    "drum pattern constraints",
+    "downbeat strength",
+    "percussion timbre",
+    "syncopation level",
+    "transient sharpness",
+    "prompt word count ratio",
+    "melody density",
+    "melody articulation",
+    "note connection",
+    "bass activity",
+    "background tension",
+    "background presence when CPM is too fast",
+    "sustained tone stability"
+  ],
+  "random_master_parts": [
+    "key",
+    "tonic",
+    "loop_bars",
+    "final chosen harmonic rhythm within weighted options"
+  ]
+}

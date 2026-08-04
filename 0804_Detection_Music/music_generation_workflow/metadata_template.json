@@ -1,0 +1,80 @@
+{
+  "library_id": "smoothclear_0.72_foreground_0.38_cpm_086_v001",
+  "version": 3,
+  "user_id": "u001",
+  "created_at": "YYYY-MM-DDTHH:mm:ssZ",
+  "global_music_identity": {
+    "sweetness_features": ["high_pitch", "bright", "consonant", "harmonious", "pleasant", "non_harsh"]
+  },
+  "music_preference": {
+    "smooth_clear": 0.72,
+    "foreground_activity": 0.38,
+    "avoid": ["sharp percussion", "busy melody"]
+  },
+  "intervention_goal": {
+    "target_cpm": 86,
+    "training_goal": ["slow_down", "stable_rhythm"]
+  },
+  "style_weights": {
+    "clarity": 0.762,
+    "smoothness": 0.388,
+    "foreground_activity": 0.473,
+    "backgroundness": 0.677
+  },
+  "master_spec": {
+    "generation_seed": 421608,
+    "master_logic": "constrained weighted sampling",
+    "target_bpm": 86,
+    "key": "D major",
+    "tonic": "D",
+    "mode": "major",
+    "scale": "D major pentatonic plus C# for gentle leading tone",
+    "chord_progression": "D6 | A6 | Bm7 | Gmaj7",
+    "harmonic_rhythm": "4 bars per chord; one full progression per 16-bar loop",
+    "meter": "4/4",
+    "loop_bars": 16,
+    "downbeat": "bar 1 beat 1, no pickup",
+    "stem_start": "0:00.000",
+    "loop_end": "exactly after bar 16 beat 4",
+    "drum_pattern": "soft sparse pulse with clear downbeat",
+    "drum_density": 0.31,
+    "downbeat_strength": 0.62,
+    "percussion_timbre": "soft clear taps, non-sharp",
+    "syncopation_level": 0.17,
+    "transient_sharpness": 0.49,
+    "background_role": "sustained_single_tone_intervention_for_cpm_too_fast",
+    "background_tension": 0.33,
+    "background_presence_when_fast": 0.69,
+    "sustained_tone_stability": 0.83,
+    "mix_target_lufs": -19
+  },
+  "audio_files": {
+    "background": "audio/background.wav",
+    "melody": "audio/melody.wav",
+    "drum": "audio/drum.wav",
+    "bass": "audio/bass.wav"
+  },
+  "runtime_control": {
+    "strategy": "layer-level playback parameter modulation",
+    "controls": ["volume", "pan", "filter", "crossfade", "ducking", "cue_trigger"],
+    "playback_policy": "playback_policy.json",
+    "cue_library": "cue_library.json"
+  },
+  "retry_and_fallback": {
+    "max_generation_attempts_per_stem": 3,
+    "fallback_order": [
+      "retry_failed_stem_only",
+      "regenerate_all_stems_with_same_master_spec",
+      "use_nearest_approved_library_item",
+      "use_default_safe_silence_with_cue"
+    ]
+  },
+  "screening": {
+    "status": "pending",
+    "auto_score": null,
+    "human_score": null,
+    "playback_controllability_score": null,
+    "issues": []
+  },
+  "status": "pending"
+}

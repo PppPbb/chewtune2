@@ -1,0 +1,95 @@
+{
+  "model_name": "chewtune_sweet_music_two_axis_preference_v3",
+  "global_music_identity": {
+    "name": "sweetness_features",
+    "description": "All generated music should keep ChewTune's sweet taste cues: relatively high pitch, bright but non-harsh timbre, consonant harmony, pleasant contour, and comfortable loopability. The background stem is the only exception: it is a sustained intervention tone for cpm_too_fast and may carry mild non-harsh tension.",
+    "fixed_constraints": [
+      "high-pitched but gentle melodic register",
+      "bright and harmonious timbre",
+      "consonant chord progression",
+      "pleasant and non-aggressive affect",
+      "comfortable for eating"
+    ]
+  },
+  "input_structure": {
+    "music_preference": {
+      "smooth_clear": "0 means Smooth, 1 means Clear",
+      "foreground_activity": "0 means Low Presence, 1 means Active / Foreground"
+    },
+    "intervention_goal": {
+      "target_cpm": "target chewing pace used by master_spec and runtime policy",
+      "training_goal": "used by playback policy and real-time state strategy, not by music preference weights"
+    }
+  },
+  "axes": {
+    "smooth_clear": {
+      "range": [0, 1],
+      "left_label": "Smooth",
+      "right_label": "Clear",
+      "description": "0 means smooth, connected, rounded and blended; 1 means clear, articulated, well-defined and crisp."
+    },
+    "foreground_activity": {
+      "range": [0, 1],
+      "bottom_label": "Background / Low Presence",
+      "top_label": "Active / Foreground",
+      "description": "0 means lower presence and lower attention demand; 1 means more foreground, active, melodic and rhythmically present. The internal backgroundness weight also controls how perceivable the cpm_too_fast sustained intervention tone can become."
+    }
+  },
+  "weight_formula": {
+    "minimum_weight": 0.15,
+    "variables": {
+      "x": "music_preference.smooth_clear",
+      "y": "music_preference.foreground_activity",
+      "m": 0.15
+    },
+    "formulas": {
+      "clarity": "m + (1 - m) * x",
+      "smoothness": "m + (1 - m) * (1 - x)",
+      "foreground_activity": "m + (1 - m) * y",
+      "backgroundness": "m + (1 - m) * (1 - y)"
+    },
+    "note": "These weights do not directly generate music. They influence prompt word ratios and master specification sampling probabilities."
+  },
+  "parameter_mapping": {
+    "generation_seed": "stored seeded random value for reproducible master specification sampling",
+    "master_logic": "constrained weighted sampling from safe musical option pools",
+    "target_bpm": "intervention_goal.target_cpm",
+    "key": "random sample from safe major keys, softly biased by clear_bias on the Smooth-Clear axis",
+    "tonic": "sampled with key",
+    "scale": "derived from tonic and sampled pleasant mode",
+    "meter": "4/4",
+    "loop_bars": "random sample from 8, 16, 32",
+    "mode": "weighted sample from major, major pentatonic, lydian-inflected major",
+    "chord_progression": "weighted sample from consonant roman progressions with clear_bias and active_bias, then normalized to sampled key",
+    "harmonic_rhythm": "weighted sample; backgroundness favors slower harmonic rhythm for the harmonic stems",
+    "drum_pattern": "soft sparse pulse with clear downbeat",
+    "drum_density": "0.10 + 0.45 * foreground_activity",
+    "downbeat_strength": "0.35 + 0.35 * clarity",
+    "percussion_timbre": "clarity > 0.68 ? soft clear taps : rounded muted soft taps",
+    "syncopation_level": "0.08 + 0.18 * foreground_activity",
+    "transient_sharpness": "0.15 + 0.45 * clarity",
+    "downbeat": "bar 1 beat 1, no pickup",
+    "stem_start": "0:00.000",
+    "loop_end": "derived from selected loop_bars",
+    "prompt_word_ratio": "word_count_i = max(1, round(weight_i / sum(weights) * 12))",
+    "sweetness_register": "0.65 + 0.20 * clarity",
+    "consonance": "0.85",
+    "melody_density": "0.18 + 0.55 * foreground_activity",
+    "melody_articulation": "0.25 + 0.60 * clarity",
+    "note_connection": "0.25 + 0.60 * smoothness",
+    "high_frequency_detail": "0.55 + 0.35 * clarity",
+    "bass_activity": "0.15 + 0.30 * foreground_activity",
+    "background_tension": "0.18 + 0.22 * backgroundness",
+    "background_presence_when_fast": "0.45 + 0.35 * backgroundness",
+    "sustained_tone_stability": "0.75 + 0.20 * smoothness",
+    "mix_target_lufs": -19
+  },
+  "runtime_strategy": {
+    "mode": "layer-level playback parameter modulation",
+    "base_stems": ["background.wav", "melody.wav", "drum.wav", "bass.wav"],
+    "no_audio_variants": true,
+    "controls": ["volume", "pan", "filter", "crossfade", "ducking", "cue_trigger"],
+    "cue_source": "independent cue_library.json with soft_pop and soft_ding",
+    "retry_fallback": "retry failed stems first; fallback to nearest approved library item or default safe silence with a low-volume cue"
+  }
+}

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ChewTune Music Library Mapper</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">ChewTune music library workflow</p>
+          <h1>音乐偏好到分层 Prompt 映射</h1>
+        </div>
+      </header>
+
+      <section class="preference-panel" aria-labelledby="pickerTitle">
+        <div class="panel-header preference-heading">
+          <span class="step">00</span>
+          <div>
+            <p class="eyebrow">Preference picker</p>
+            <h2 id="pickerTitle">选择音乐偏好维度</h2>
+          </div>
+        </div>
+
+        <div class="picker-layout">
+          <div class="axis-picker" id="axisPicker" role="application" aria-label="二维音乐偏好选择器">
+            <span class="axis-label top">Clear</span>
+            <span class="axis-label bottom">Smooth</span>
+            <span class="axis-label left">Background<br />Low Presence</span>
+            <span class="axis-label right">Active<br />Foreground</span>
+            <div class="grid-lines" aria-hidden="true"></div>
+            <div class="axis-line vertical" aria-hidden="true"></div>
+            <div class="axis-line horizontal" aria-hidden="true"></div>
+            <button class="picker-dot" id="pickerDot" type="button" aria-label="当前偏好点"></button>
+          </div>
+
+          <div class="controls">
+            <label>
+              <span>Smooth → Clear</span>
+              <input id="smoothClear" type="range" min="0" max="1" step="0.01" value="0.72" />
+            </label>
+            <label>
+              <span>Background → Foreground</span>
+              <input id="foregroundActivity" type="range" min="0" max="1" step="0.01" value="0.38" />
+            </label>
+            <label>
+              <span>Target CPM</span>
+              <input id="targetCpm" type="number" min="80" max="120" value="86" />
+            </label>
+            <div class="toggles">
+              <label><input id="slowDown" type="checkbox" checked /> slow_down</label>
+              <label><input id="stableRhythm" type="checkbox" checked /> stable_rhythm</label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="summary-band">
+        <div class="sweetness-card">
+          <span class="pill">固定音乐身份</span>
+          <h2>甜味特征</h2>
+          <p>所有音乐默认保持高音调、明亮、和谐、愉悦、不刺耳；偏好只调节 Smooth/Clear 与 Background/Foreground。</p>
+        </div>
+        <div class="current-card">
+          <span class="pill">当前偏好点</span>
+          <div class="metric-row">
+            <div>
+              <strong id="xValue">0.72</strong>
+              <span>Smooth → Clear</span>
+            </div>
+            <div>
+              <strong id="yValue">0.38</strong>
+              <span>Background → Foreground</span>
+            </div>
+            <div>
+              <strong id="cpmValue">86</strong>
+              <span>Target CPM</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="results-grid">
+        <article class="panel weights-panel">
+          <div class="panel-header">
+            <span class="step">01</span>
+            <h2>权重计算</h2>
+          </div>
+          <div class="bar-list" id="weightsList"></div>
+        </article>
+
+        <article class="panel params-panel">
+          <div class="panel-header">
+            <span class="step">02</span>
+            <h2>参数映射结果</h2>
+          </div>
+          <div class="param-table" id="paramsTable"></div>
+        </article>
+
+        <article class="panel prompt-panel">
+          <div class="panel-header">
+            <span class="step">03</span>
+            <h2>母版规格 Prompt</h2>
+          </div>
+          <pre id="masterPrompt"></pre>
+        </article>
+
+        <article class="panel prompt-panel stems-panel">
+          <div class="panel-header">
+            <span class="step">04</span>
+            <h2>四层音乐 API Request</h2>
+          </div>
+          <div class="tabs" role="tablist" aria-label="Stem prompts">
+            <button class="tab active" data-stem="background" type="button">Background</button>
+            <button class="tab" data-stem="melody" type="button">Melody</button>
+            <button class="tab" data-stem="drum" type="button">Drum</button>
+            <button class="tab" data-stem="bass" type="button">Bass</button>
+          </div>
+          <pre id="stemPrompt"></pre>
+        </article>
+
+        <article class="panel prompt-panel stems-panel">
+          <div class="panel-header">
+            <span class="step">05</span>
+            <h2>完整后端 Payload</h2>
+          </div>
+          <pre id="apiPayload"></pre>
+        </article>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

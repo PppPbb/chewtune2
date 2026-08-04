@@ -1,0 +1,51 @@
+{
+  "library_name": "chewtune_sweet_prompt_library_v2",
+  "global_constraints": [
+    "All music must express sweet taste cues: high-pitched, bright, consonant, pleasant, harmonious, and non-harsh.",
+    "Exception: the background stem is a sustained intervention tone for cpm_too_fast, so it may use mild non-harsh tension or slight dissonance while staying eating-safe.",
+    "Do not generate a standalone master audio track.",
+    "Generate a shared master specification brief first, then include a layer-filtered version of that brief inside each layer prompt.",
+    "All stems must share the same BPM, key reference, time signature, downbeat, start time, end time, and loop length. Chord progression is a shared reference for stems that need harmony.",
+    "The result must be seamless-loop ready.",
+    "The music must be suitable for eating: comfortable, non-aggressive, not overly distracting."
+  ],
+  "parameter_to_words": {
+    "smoothness": {
+      "low": ["defined articulation", "clean note boundaries", "less blended phrasing"],
+      "mid": ["smooth but still readable", "rounded articulation"],
+      "high": ["legato-like motion", "warm connected phrasing", "soft transitions", "silky contour"]
+    },
+    "clarity": {
+      "low": ["gentle clarity", "softened edges", "less percussive articulation"],
+      "mid": ["clear but smooth", "balanced note definition"],
+      "high": ["crisp but non-harsh", "well-defined melody", "transparent upper harmonics", "clear bell-like sweetness"]
+    },
+    "backgroundness": {
+      "low": ["more foreground", "more audible motif", "clearer rhythmic identity"],
+      "mid": ["moderate presence", "supportive but noticeable"],
+      "high": ["low presence", "reduced reward", "subtle tension", "fade-in intervention"]
+    },
+    "foreground_activity": {
+      "low": ["low presence", "sparse melody", "minimal rhythmic motion", "non-intrusive"],
+      "mid": ["moderate foreground presence", "recognizable but gentle motif", "light pulse"],
+      "high": ["active foreground motif", "more melodic movement", "clearer rhythmic pulse", "engaging but not aggressive"]
+    }
+  },
+  "master_spec_prompt_template": "Shared master specification brief for ChewTune stems. This is NOT a request to create a standalone master audio track. Use this brief only to keep separately generated layers consistent. Master specification logic: constrained weighted sampling. Seed: {generation_seed}. Prompt word ratio: {prompt_word_ratio}. Loop structure: {loop_bars}-bar seamless loop. BPM: {target_bpm}. Key: {key}. Tonic: {tonic}. Mode: {mode}. Scale: {scale}. Meter: {meter}. Chord progression: {chord_progression}. Harmonic rhythm: {harmonic_rhythm}. Drum pattern: {drum_pattern}; downbeat strength {downbeat_strength}; percussion timbre {percussion_timbre}; syncopation level {syncopation_level}; transient sharpness {transient_sharpness}. Shared alignment: {downbeat}; stem starts at {stem_start}; loop ends {loop_end}; same loop length, same BPM, and same key reference. Use the same chord progression as a reference only where the stem role needs harmony. Sweet taste identity: high-pitched where relevant, bright, consonant, harmonious, pleasant, and non-harsh. Smooth/Clear setting: {smooth_clear_words}. Background/Foreground setting: {foreground_words}. Eating context: comfortable dynamics, no aggressive percussion, no cinematic tension, no distracting lead unless the requested layer is melody.",
+  "stem_system_prompts": {
+    "background": "You are generating only the BACKGROUND stem for ChewTune, defined as a sustained intervention tone. Create a single continuous tone layer that can fade in when chewing CPM is too fast. The tone should carry mild, non-harsh tension or slight dissonance against the shared key/chord so it reduces reward without feeling alarming. Do not generate melody, chords, pad harmony, bass, percussion, rhythmic pulse, or atmospheric bed. Keep it seamless-loop ready, sparse, stable, eating-safe, and easy to mute or fade out.",
+    "melody": "You are generating only the MELODY stem for ChewTune. Create a sweet high-register motif with positive-feedback value, aligned to the shared BPM, key, chord progression, downbeat, and loop length. Do not generate drums, bass line, background pad, or full arrangement. Keep the melody sparse enough for eating, bright, consonant, pleasant, and non-harsh.",
+    "drum": "You are generating only the DRUM stem for ChewTune. This is a controllable low-disturbance percussion layer for adjusting rhythmic presence, not an aggressive beat layer. Use only timing parameters: BPM, meter, downbeat, loop length, drum pattern, and rhythmic regularness. Do not generate melody, chords, pads, bass, or pitched musical hooks. The rhythm must be gentle, sparse, non-aggressive, eating-friendly, and useful as a subtle chewing rhythm cue.",
+    "bass": "You are generating only the BASS stem for ChewTune. Use only harmonic and timing parameters: key, chord progression, BPM, downbeat, and loop length. Do not generate melody, high-register sweet timbre, pads, drums, or full arrangement. Keep it warm, simple, consonant, supportive, and suitable to fade in as a reward when chewing rhythm is stable."
+  },
+  "stem_user_prompt_templates": {
+    "background": "{background_parameter_brief}",
+    "melody": "{melody_parameter_brief}",
+    "drum": "{drum_parameter_brief}",
+    "bass": "{bass_parameter_brief}"
+  },
+  "runtime_playback_note": "Do not generate state audio variants. Generate only background.wav, melody.wav, drum.wav, and bass.wav. background.wav is a sustained single-tone intervention layer used mainly by cpm_too_fast. Runtime states are controlled through playback_policy.json.",
+  "example_filled_prompts": {
+    "master_spec": "Shared master specification brief for ChewTune stems. This is NOT a request to create a standalone master audio track. Use this brief only to keep separately generated layers consistent. Master specification logic: constrained weighted sampling. Seed: 421608. Prompt word ratio: clarity 4 / smoothness 2 / foreground 3 / background 3. Loop structure: 16-bar seamless loop. BPM: 86. Key: D major. Tonic: D. Mode: major. Scale: D major pentatonic plus C# for gentle leading tone. Meter: 4/4. Chord progression: D6 | A6 | Bm7 | Gmaj7. Harmonic rhythm: 4 bars per chord; one full progression per 16-bar loop. Drum pattern: soft sparse pulse with clear downbeat; downbeat strength 0.62; percussion timbre soft clear taps, non-sharp; syncopation level 0.17; transient sharpness 0.49. Shared alignment: bar 1 beat 1, no pickup; stem starts at 0:00.000; loop ends exactly after bar 16 beat 4; same loop length, same BPM, and same key reference. Use the same chord progression as a reference only where the stem role needs harmony. Sweet taste identity: high-pitched where relevant, bright, consonant, harmonious, pleasant, and non-harsh. Smooth/Clear setting: crisp but non-harsh, well-defined melody, transparent upper harmonics, clear bell-like sweetness, smooth but still readable. Background/Foreground setting: moderate foreground presence, recognizable but gentle motif, light pulse, low presence, reduced reward, subtle tension. Eating context: comfortable dynamics, no aggressive percussion, no cinematic tension, no distracting lead unless the requested layer is melody."
+  }
+}

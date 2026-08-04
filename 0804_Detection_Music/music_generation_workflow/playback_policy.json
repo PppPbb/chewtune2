@@ -1,0 +1,55 @@
+{
+  "mode": "parameter_modulation",
+  "description": "Use one set of four base stems and adapt intervention states through runtime playback parameters instead of pre-rendered audio variants.",
+  "controls": ["volume", "pan", "filter", "crossfade", "ducking", "cue_trigger"],
+  "cue_source": {
+    "type": "independent_cue_library",
+    "file": "cue_library.json",
+    "available_cues": ["soft_pop", "soft_ding"]
+  },
+  "presets": {
+    "normal": {
+      "background": { "volume": 0, "pan": 0, "lowpass_hz": null },
+      "melody": { "volume": 0.55, "pan": 0, "lowpass_hz": null },
+      "drum": { "volume": 0.35, "pan": 0, "lowpass_hz": null },
+      "bass": { "volume": 0.4, "pan": 0 },
+      "transition": { "crossfade_ms": 3000 }
+    },
+    "cpm_too_fast": {
+      "background": { "volume": 0.58, "pan": 0, "lowpass_hz": 2600 },
+      "melody": { "volume": 0.35, "pan": 0, "lowpass_hz": 2200 },
+      "drum": { "volume": 0.1, "pan": 0, "lowpass_hz": 1200 },
+      "bass": { "volume": 0.3, "pan": 0 },
+      "transition": { "crossfade_ms": 4000 }
+    },
+    "stable_target": {
+      "background": { "volume": 0, "pan": 0 },
+      "melody": { "volume": 0.65, "pan": 0 },
+      "drum": { "volume": 0.35, "pan": 0 },
+      "bass": { "volume": 0.6, "pan": 0 },
+      "transition": { "crossfade_ms": 3000 }
+    },
+    "pause_too_long": {
+      "background": { "volume": 0, "pan": 0 },
+      "melody": { "volume": 0.2, "pan": 0, "lowpass_hz": 1800 },
+      "drum": { "volume": 0, "pan": 0 },
+      "bass": { "volume": 0.2, "pan": 0 },
+      "cue_trigger": { "cue_id": "soft_ding", "volume": 0.25 },
+      "transition": { "crossfade_ms": 2500 }
+    },
+    "left_side_bias": {
+      "background": { "volume": 0, "pan": 0 },
+      "melody": { "volume": 0.5, "pan": -0.2 },
+      "drum": { "volume": 0.3, "pan": 0 },
+      "bass": { "volume": 0.4, "pan": 0 },
+      "transition": { "crossfade_ms": 3000 }
+    },
+    "right_side_bias": {
+      "background": { "volume": 0, "pan": 0 },
+      "melody": { "volume": 0.5, "pan": 0.2 },
+      "drum": { "volume": 0.3, "pan": 0 },
+      "bass": { "volume": 0.4, "pan": 0 },
+      "transition": { "crossfade_ms": 3000 }
+    }
+  }
+}

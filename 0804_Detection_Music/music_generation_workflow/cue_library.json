@@ -1,0 +1,25 @@
+{
+  "library_name": "chewtune_cue_library",
+  "description": "Independent short cue sounds used by runtime cue_trigger. These cues are not stem variants and are not generated as part of the four music stems.",
+  "cues": {
+    "soft_pop": {
+      "file": "cue/pop.wav",
+      "role": "gentle micro prompt",
+      "duration_ms": 120,
+      "default_volume": 0.2,
+      "timbre": "soft, rounded, non-startling"
+    },
+    "soft_ding": {
+      "file": "cue/ding.wav",
+      "role": "pause or completion cue",
+      "duration_ms": 450,
+      "default_volume": 0.25,
+      "timbre": "clear, sweet, non-sharp"
+    }
+  },
+  "rules": [
+    "Cue sounds are stored separately from background/melody/drum/bass stems.",
+    "Cue sounds must be short, gentle, non-startling, and eating-friendly.",
+    "cue_trigger references cue ids from this library instead of switching to pre-rendered music variants."
+  ]
+}

@@ -1,0 +1,183 @@
+<svg width="2200" height="1350" viewBox="0 0 2200 1350" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .title { font: 800 58px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #17211f; }
+      .subtitle { font: 400 28px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #60706b; }
+      .stage { font: 800 26px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #ffffff; }
+      .nodeTitle { font: 800 30px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #17211f; }
+      .body { font: 500 22px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #33413d; }
+      .small { font: 400 19px -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; fill: #66746f; }
+      .mono { font: 600 19px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #31413d; }
+      .card { fill: #ffffff; stroke: #d6e1dd; stroke-width: 2; }
+      .input { fill: #eef7f4; stroke: #7db3a2; stroke-width: 2; }
+      .calc { fill: #fff7e8; stroke: #dfb365; stroke-width: 2; }
+      .prompt { fill: #f1efff; stroke: #9a91e8; stroke-width: 2; }
+      .audio { fill: #edf3ff; stroke: #86a2e9; stroke-width: 2; }
+      .quality { fill: #fdf0ef; stroke: #d98c81; stroke-width: 2; }
+      .store { fill: #edf8ec; stroke: #77b57b; stroke-width: 2; }
+      .arrow { stroke: #7d8985; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+      .arrowBlue { stroke: #6f88d9; stroke-width: 4; fill: none; marker-end: url(#arrowBlue); }
+      .line { stroke: #d8e3df; stroke-width: 2; }
+      .dash { stroke: #cbd7d3; stroke-width: 2; stroke-dasharray: 10 10; }
+    </style>
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto">
+      <path d="M2 2L12 7L2 12Z" fill="#7d8985"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto">
+      <path d="M2 2L12 7L2 12Z" fill="#6f88d9"/>
+    </marker>
+    <linearGradient id="bg" x1="0" y1="0" x2="2200" y2="1350" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fafcfb"/>
+      <stop offset="1" stop-color="#edf5f2"/>
+    </linearGradient>
+    <linearGradient id="header" x1="80" y1="0" x2="2120" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4f67dc"/>
+      <stop offset="0.55" stop-color="#6f89e6"/>
+      <stop offset="1" stop-color="#6bb38f"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#16322b" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <rect width="2200" height="1350" fill="url(#bg)"/>
+  <rect x="70" y="58" width="2060" height="150" rx="32" fill="#ffffff" filter="url(#shadow)"/>
+  <rect x="70" y="58" width="18" height="150" rx="9" fill="url(#header)"/>
+  <text x="125" y="125" class="title">ChewTune 音乐库生成技术路径</text>
+  <text x="128" y="172" class="subtitle">甜味特征固定 → 偏好/干预目标输入 → 权重映射 → 母版规格 → 四层 API Request → 四层 Stem → 播放策略</text>
+
+  <!-- top workflow nodes -->
+  <rect x="70" y="270" width="250" height="55" rx="18" fill="#6bb38f"/>
+  <text x="112" y="306" class="stage">01 偏好输入</text>
+  <rect x="70" y="330" width="250" height="255" rx="24" class="input" filter="url(#shadow)"/>
+  <text x="100" y="382" class="nodeTitle">二维偏好</text>
+  <text x="100" y="430" class="body">Smooth ↔ Clear</text>
+  <text x="100" y="466" class="body">Bg/Low Presence ↔ Active/Fg</text>
+  <line x1="100" y1="495" x2="290" y2="495" class="line"/>
+  <text x="100" y="532" class="mono">x = smooth_clear</text>
+  <text x="100" y="562" class="mono">y = fg_activity</text>
+
+  <path d="M330 457H410" class="arrow"/>
+
+  <rect x="420" y="270" width="270" height="55" rx="18" fill="#dfb365"/>
+  <text x="463" y="306" class="stage">02 权重计算</text>
+  <rect x="420" y="330" width="270" height="255" rx="24" class="calc" filter="url(#shadow)"/>
+  <text x="450" y="382" class="nodeTitle">四个指标</text>
+  <text x="450" y="430" class="mono">clarity = m+(1-m)x</text>
+  <text x="450" y="464" class="mono">smooth = m+(1-m)(1-x)</text>
+  <text x="450" y="498" class="mono">foreground = m+(1-m)y</text>
+  <text x="450" y="532" class="mono">background = m+(1-m)(1-y)</text>
+  <text x="450" y="565" class="small">m = 0.15，避免极端为 0</text>
+
+  <path d="M700 457H780" class="arrow"/>
+
+  <rect x="790" y="270" width="285" height="55" rx="18" fill="#dfb365"/>
+  <text x="831" y="306" class="stage">03 参数映射</text>
+  <rect x="790" y="330" width="285" height="255" rx="24" class="calc" filter="url(#shadow)"/>
+  <text x="820" y="382" class="nodeTitle">音乐生成参数</text>
+  <text x="820" y="430" class="body">BPM = target CPM</text>
+  <text x="820" y="464" class="body">key / mode / loop bars</text>
+  <text x="820" y="498" class="body">melody density / clarity</text>
+  <text x="820" y="532" class="body">drum density / transient</text>
+  <text x="820" y="565" class="body">sweetness / reverb / bass</text>
+
+  <path d="M1085 457H1165" class="arrow"/>
+
+  <rect x="1175" y="270" width="285" height="55" rx="18" fill="#9187df"/>
+  <text x="1219" y="306" class="stage">04 Prompt 生成</text>
+  <rect x="1175" y="330" width="285" height="255" rx="24" class="prompt" filter="url(#shadow)"/>
+  <text x="1205" y="382" class="nodeTitle">提示词组装</text>
+  <text x="1205" y="430" class="body">母版规格 brief</text>
+  <text x="1205" y="464" class="body">brief 嵌入四层 prompt</text>
+  <text x="1205" y="498" class="body">播放策略 payload</text>
+  <line x1="1205" y1="525" x2="1430" y2="525" class="line"/>
+  <text x="1205" y="560" class="small">约束：同 BPM / 调性 / 小节 / 起点</text>
+
+  <path d="M1470 457H1550" class="arrow"/>
+
+  <rect x="1560" y="270" width="295" height="55" rx="18" fill="#6f88d9"/>
+  <text x="1600" y="306" class="stage">05 音乐生成</text>
+  <rect x="1560" y="330" width="295" height="255" rx="24" class="audio" filter="url(#shadow)"/>
+  <text x="1590" y="382" class="nodeTitle">分别生成四层</text>
+  <text x="1590" y="430" class="body">不生成 master_mix</text>
+  <text x="1590" y="464" class="body">共享 brief 统一参数</text>
+  <line x1="1590" y1="493" x2="1815" y2="493" class="line"/>
+  <text x="1590" y="530" class="body">再导出四层 Stem</text>
+  <text x="1590" y="562" class="small">background / melody / drum / bass</text>
+
+  <path d="M1865 457H1945" class="arrow"/>
+
+  <rect x="1955" y="270" width="175" height="55" rx="18" fill="#77b57b"/>
+  <text x="1988" y="306" class="stage">06 入库</text>
+  <rect x="1955" y="330" width="175" height="255" rx="24" class="store" filter="url(#shadow)"/>
+  <text x="1983" y="382" class="nodeTitle">资产包</text>
+  <text x="1983" y="430" class="body">audio/</text>
+  <text x="1983" y="464" class="body">metadata</text>
+  <text x="1983" y="498" class="body">prompts</text>
+  <text x="1983" y="532" class="body">screening</text>
+
+  <!-- middle detail: stems -->
+  <rect x="70" y="670" width="975" height="470" rx="30" class="card" filter="url(#shadow)"/>
+  <text x="110" y="728" class="nodeTitle">音乐生成阶段：用参数 brief 保证四层能合起来</text>
+  <text x="112" y="768" class="small">核心原则：不生成独立母版音频；只生成四个基础 stem，干预状态通过播放参数调度。</text>
+  <line x1="110" y1="805" x2="1005" y2="805" class="line"/>
+
+  <rect x="120" y="850" width="195" height="190" rx="22" fill="#f2f7fb" stroke="#aebbd0" stroke-width="2"/>
+  <text x="152" y="902" class="nodeTitle">Background</text>
+  <text x="152" y="945" class="body">持续单音干预</text>
+  <text x="152" y="978" class="small">低干扰 / 可循环</text>
+  <text x="152" y="1010" class="small">用餐环境稳定</text>
+
+  <rect x="350" y="850" width="195" height="190" rx="22" fill="#eef6f3" stroke="#9ac6b3" stroke-width="2"/>
+  <text x="382" y="902" class="nodeTitle">Melody</text>
+  <text x="382" y="945" class="body">主旋律反馈</text>
+  <text x="382" y="978" class="small">clear / smooth</text>
+  <text x="382" y="1010" class="small">low-pass 参数</text>
+
+  <rect x="580" y="850" width="195" height="190" rx="22" fill="#fff7e8" stroke="#dfb365" stroke-width="2"/>
+  <text x="612" y="902" class="nodeTitle">Drum</text>
+  <text x="612" y="945" class="body">节拍线索</text>
+  <text x="612" y="978" class="small">normal / reduced</text>
+  <text x="612" y="1010" class="small">emphasized</text>
+
+  <rect x="810" y="850" width="195" height="190" rx="22" fill="#f1efff" stroke="#9a91e8" stroke-width="2"/>
+  <text x="842" y="902" class="nodeTitle">Bass</text>
+  <text x="842" y="945" class="body">稳定奖励层</text>
+  <text x="842" y="978" class="small">节奏稳定时淡入</text>
+  <text x="842" y="1010" class="small">不抢旋律</text>
+
+  <path d="M215 830V805" class="arrowBlue"/>
+  <path d="M447 830V805" class="arrowBlue"/>
+  <path d="M677 830V805" class="arrowBlue"/>
+  <path d="M907 830V805" class="arrowBlue"/>
+
+  <!-- middle detail: quality -->
+  <rect x="1125" y="670" width="1005" height="470" rx="30" class="card" filter="url(#shadow)"/>
+  <text x="1165" y="728" class="nodeTitle">音乐筛选阶段：保证可听、可合、可反馈</text>
+  <text x="1167" y="768" class="small">自动检查解决文件与工程质量，人工筛选确认用餐舒适度和状态反馈是否成立。</text>
+  <line x1="1165" y1="805" x2="2090" y2="805" class="line"/>
+
+  <rect x="1175" y="845" width="420" height="230" rx="24" class="quality"/>
+  <text x="1210" y="900" class="nodeTitle">自动筛选</text>
+  <text x="1210" y="947" class="body">时长一致 / 起点对齐</text>
+  <text x="1210" y="981" class="body">BPM 误差 &lt; 2</text>
+  <text x="1210" y="1015" class="body">Peak &lt; -1 dBFS</text>
+  <text x="1210" y="1049" class="body">循环首尾无断裂</text>
+
+  <rect x="1645" y="845" width="420" height="230" rx="24" class="quality"/>
+  <text x="1680" y="900" class="nodeTitle">人工筛选</text>
+  <text x="1680" y="947" class="body">四层全开自然不浑浊</text>
+  <text x="1680" y="981" class="body">Bass 淡入像奖励</text>
+  <text x="1680" y="1015" class="body">Muffled 能提示过快</text>
+  <text x="1680" y="1049" class="body">整体适合用餐</text>
+
+  <path d="M1595 960H1635" class="arrow"/>
+
+  <!-- bottom runtime path -->
+  <rect x="70" y="1190" width="2060" height="100" rx="28" fill="#ffffff" stroke="#d6e1dd" stroke-width="2"/>
+  <text x="110" y="1252" class="nodeTitle">实时调用：</text>
+  <text x="285" y="1252" class="body">IMU 咀嚼数据 → CPM / 稳定度 / 停顿判断 → 查询 metadata.state_mapping → 对 background / melody / drum / bass 做淡入淡出与切换</text>
+
+  <path d="M2045 596V1170" class="dash"/>
+  <path d="M2045 1170H1830" class="arrow"/>
+</svg>
