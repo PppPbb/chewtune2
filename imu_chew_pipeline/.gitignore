@@ -1,6 +1,0 @@
-python/__pycache__/
-python/*.pyc
-data/raw/*.csv
-data/processed/**/*.csv
-models/*.pkl
-

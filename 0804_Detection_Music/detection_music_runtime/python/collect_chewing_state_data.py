@@ -5,7 +5,7 @@ import time
 import tkinter as tk
 from pathlib import Path
 
-from realtime_dual_mpu6050_detection import RAW_COLUMNS, open_serial_port, parse_dual_imu_csv_line
+from detector import RAW_COLUMNS, open_serial_port, parse_dual_imu_csv_line
 
 
 DEFAULT_SEQUENCE = ["chewing", "speaking", "still"]
@@ -52,7 +52,7 @@ class AutoCollector:
         self.writer.writerow(RAW_COLUMNS + ["label", "elapsed_s", "session_id"])
 
         self.root = tk.Tk()
-        self.root.title("S3 Training Data Collector")
+        self.root.title("Chewing State Training Data Collector")
         self.root.geometry("520x300")
         self.root.protocol("WM_DELETE_WINDOW", self.stop)
         self.root.bind("<space>", self.toggle_pause)
@@ -63,7 +63,7 @@ class AutoCollector:
         self.sample_var = tk.StringVar(value="")
         self.tip_var = tk.StringVar(value="First 3s ignored. Space = pause/resume. Then auto collect states.")
 
-        tk.Label(self.root, text="S3 Training Data", font=("Arial", 20, "bold")).pack(pady=(18, 8))
+        tk.Label(self.root, text="Chewing State Training Data", font=("Arial", 20, "bold")).pack(pady=(18, 8))
         tk.Label(self.root, textvariable=self.state_var, font=("Arial", 28, "bold")).pack(pady=4)
         tk.Label(self.root, textvariable=self.timer_var, font=("Arial", 18)).pack(pady=2)
         tk.Label(self.root, textvariable=self.next_var, font=("Arial", 16)).pack(pady=2)
@@ -218,7 +218,7 @@ class AutoCollector:
         print(f"Saved metadata to {self.meta_path}")
 
     def run(self) -> None:
-        print("S3 auto training data collection")
+        print("Chewing-state training data collection")
         print(f"Ignore first {self.args.ignore_seconds}s, then {self.args.segment_seconds}s per state.")
         print("Press Space in the window to pause/resume.")
         print(f"States: {' -> '.join(self.args.states)} x {self.args.cycles}")
@@ -229,7 +229,7 @@ class AutoCollector:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Collect S3 dual IMU training data with an automatic state window.")
+    parser = argparse.ArgumentParser(description="Collect dual IMU chewing-state training data with an automatic state window.")
     parser.add_argument("--port", default="COM4")
     parser.add_argument("--baud", type=int, default=115200)
     parser.add_argument("--out-dir", type=Path, default=Path("data") / "state")

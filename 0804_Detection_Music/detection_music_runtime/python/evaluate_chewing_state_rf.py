@@ -134,7 +134,7 @@ def evaluate_leave_one_session_out(feature_df: pd.DataFrame, args) -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Evaluate S3 Random Forest chewing-state model.")
+    parser = argparse.ArgumentParser(description="Evaluate the Random Forest chewing-state model.")
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
     parser.add_argument("--model", type=Path, default=DEFAULT_MODEL_PATH)
     parser.add_argument("--report-out", type=Path, default=DEFAULT_REPORT_OUT)
@@ -155,7 +155,7 @@ def main() -> None:
         raise ValueError("Need both chewing and non_chewing windows for evaluation.")
 
     output = [
-        "S3 chewing-state RF evaluation",
+        "Chewing-state RF evaluation",
         f"Data dir: {args.data_dir}",
         "\nWindow label counts:",
         feature_df["label"].value_counts().to_string(),

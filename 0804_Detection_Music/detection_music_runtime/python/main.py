@@ -10,7 +10,7 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.widgets import Button
 import numpy as np
 
-import realtime_dual_mpu6050_detection as c3
+import detector
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -30,8 +30,7 @@ STATE_LAYERS = {
     "stable": {"bass", "drum", "melody"},
     "fast": {"background", "drum"},
 }
-S2_STATE_VALUES = {"pause": 0, "normal": 1, "stable": 2, "fast": 3}
-S2_STATE_LABELS = ["pause", "normal", "stable", "fast"]
+INTERVENTION_STATE_VALUES = {"pause": 0, "normal": 1, "stable": 2, "fast": 3}
 
 
 class MusicLayerPlayer:
@@ -50,7 +49,7 @@ class MusicLayerPlayer:
         try:
             import pygame
         except ImportError as exc:
-            raise ImportError("pygame is required for S3 music playback. Install it with: pip install pygame") from exc
+            raise ImportError("pygame is required for music playback. Install it with: pip install pygame") from exc
 
         pygame.mixer.init()
         self.music_dir.mkdir(parents=True, exist_ok=True)
@@ -81,7 +80,7 @@ class MusicLayerPlayer:
         if not self.enabled:
             print("No music layers were loaded. Detection will still run, but no audio will play.")
         else:
-            print(f"Loaded {len(self.channels)} music layer(s). Layers are looping at inactive volume until S3 activates them.")
+            print(f"Loaded {len(self.channels)} music layer(s). Layers are looping at inactive volume until ChewTune activates them.")
 
     def find_layer_file(self, layer: str) -> Optional[Path]:
         return self.find_audio_file(layer)
@@ -441,7 +440,7 @@ def load_side_model(path: Path, metadata_path: Path, args: argparse.Namespace) -
         bundle = joblib.load(path)
         bundle["kind"] = bundle.get("kind", "random_forest")
 
-    print(f"Loaded S3 side model: {path}")
+    print(f"Loaded side model: {path}")
     return bundle
 
 
@@ -468,13 +467,13 @@ def detect_c3_window(
     threshold_gate: Optional[dict],
 ) -> dict:
     if state_bundle is not None:
-        state_pred, chewing_prob = c3.predict_chewing_state(df, fs, state_bundle)
+        state_pred, chewing_prob = detector.predict_chewing_state(df, fs, state_bundle)
         threshold_metrics = {"threshold_score": 0.0}
     else:
-        state_pred, chewing_prob, threshold_metrics = c3.predict_chewing_state_by_threshold(df, threshold_gate)
+        state_pred, chewing_prob, threshold_metrics = detector.predict_chewing_state_by_threshold(df, threshold_gate)
 
     if state_pred == "non_chewing":
-        rule_result = c3.classify_dual_window(df, fs, detection_args)
+        rule_result = detector.classify_dual_window(df, fs, detection_args)
         result = {
             "state": "non_chewing",
             "side": "-",
@@ -491,9 +490,9 @@ def detect_c3_window(
         }
     else:
         if side_model is not None:
-            result = c3.classify_dual_window_with_model(df, fs, detection_args, side_model)
+            result = detector.classify_dual_window_with_model(df, fs, detection_args, side_model)
         else:
-            result = c3.classify_dual_window(df, fs, detection_args)
+            result = detector.classify_dual_window(df, fs, detection_args)
             result["model_side"] = "-"
             result["model_prob"] = 0.0
 
@@ -504,7 +503,7 @@ def detect_c3_window(
             result["raw_cpm"] = 0.0
             result["channel"] = "-"
             result["peaks"] = 0
-        result = c3.apply_cpm_calibrator(df, fs, detection_args, result, cpm_calibrator)
+        result = detector.apply_cpm_calibrator(df, fs, detection_args, result, cpm_calibrator)
 
     result["chewing_prob"] = chewing_prob
     result.update(threshold_metrics)
@@ -534,13 +533,13 @@ def run_terminal_loop(
     start_time_ms = None
     last_update_s = 0.0
 
-    print(f"S3 running on {args.port}. Fast threshold={args.fast_cpm_threshold:.1f} CPM.")
+    print(f"ChewTune running on {args.port}. Fast threshold={args.fast_cpm_threshold:.1f} CPM.")
     print("Music mapping: pause=none, normal=drum+melody, stable=bass+drum+melody, fast=background+drum.")
     print("Press Ctrl+C to stop.")
 
     while True:
         raw = ser.readline().decode("utf-8", errors="ignore")
-        sample = c3.parse_dual_imu_csv_line(raw)
+        sample = detector.parse_dual_imu_csv_line(raw)
         if sample is None:
             continue
 
@@ -556,7 +555,7 @@ def run_terminal_loop(
             continue
         last_update_s = now_s
 
-        df = c3.build_window_dataframe(buffer)
+        df = detector.build_window_dataframe(buffer)
         detection = detect_c3_window(df, fs, detection_args, side_model, cpm_calibrator, state_bundle, threshold_gate)
         intervention_result = intervention.update(detection, now_s, args.update_seconds)
         ppb_result = ppb.update(detection, df, fs, args, start_time_ms, elapsed_s, player)
@@ -569,7 +568,7 @@ def run_terminal_loop(
         player.set_active_layers(intervention_result["active_layers"], pan)
 
         print(
-            f"S3={detection['state']:12s} side={detection['side']:15s} "
+            f"state={detection['state']:12s} side={detection['side']:15s} "
             f"CPM={float(detection['cpm']):5.1f} "
             f"stability={intervention_result['stability']:.2f} "
             f"music={intervention_result['intervention_state']:6s} "
@@ -601,7 +600,7 @@ def run_visual_loop(
     t_data = deque(maxlen=plot_samples)
     event_times = deque(maxlen=plot_samples)
     chewing_values = deque(maxlen=plot_samples)
-    s2_values = deque(maxlen=plot_samples)
+    intervention_values = deque(maxlen=plot_samples)
     cpm_values = deque(maxlen=plot_samples)
     stability_values = deque(maxlen=plot_samples)
     pan_values = deque(maxlen=plot_samples)
@@ -637,7 +636,7 @@ def run_visual_loop(
         "target_pan": 0.0,
     }
 
-    print(f"S3 visual interface running on {args.port}. Close the window or press Stop to quit.")
+    print(f"ChewTune visual interface running on {args.port}. Close the window or press Stop to quit.")
 
     fig, axes = plt.subplots(4, 1, figsize=(12, 9), sharex=True)
     plt.subplots_adjust(top=0.78, bottom=0.12, hspace=0.38)
@@ -649,8 +648,8 @@ def run_visual_loop(
     ax_stability.axhline(args.stable_threshold, color="#ff7f0e", linestyle="--", linewidth=1.5, label="stable threshold")
     pan_line, = ax_pan.plot([], [], color="#17becf", linewidth=2, label="sound pan")
     ax_pan.axhline(0.0, color="#666666", linestyle="--", linewidth=1.0, label="center")
-    chewing_line, = ax_state.step([], [], where="post", color="#222222", linewidth=2, label="S3 chewing")
-    s2_line, = ax_state.step([], [], where="post", color="#9467bd", linewidth=2, label="music state")
+    chewing_line, = ax_state.step([], [], where="post", color="#222222", linewidth=2, label="chewing")
+    intervention_line, = ax_state.step([], [], where="post", color="#9467bd", linewidth=2, label="music state")
 
     ax_cpm.set_title("Chewing rate")
     ax_cpm.set_ylabel("CPM")
@@ -674,7 +673,7 @@ def run_visual_loop(
         axis.grid(True)
         axis.legend(loc="upper right")
 
-    status_text = fig.text(0.02, 0.93, "S3: warming_up | Side: - | CPM: 0.0", fontsize=15, weight="bold")
+    status_text = fig.text(0.02, 0.93, "State: warming_up | Side: - | CPM: 0.0", fontsize=15, weight="bold")
     status_text_2 = fig.text(0.02, 0.885, "Music: pause | stability: 0.00 | layers: none", fontsize=13)
     status_text_3 = fig.text(0.02, 0.845, "Pan: +0.00 target +0.00 | Model: - (0.00) | threshold: 0.00", fontsize=11)
 
@@ -689,7 +688,7 @@ def run_visual_loop(
 
     def update(_frame):
         if runtime["stop"]:
-            return [cpm_line, stability_line, pan_line, chewing_line, s2_line]
+            return [cpm_line, stability_line, pan_line, chewing_line, intervention_line]
 
         pan = spatial.tick(time.monotonic())
         player.set_pan(pan)
@@ -700,7 +699,7 @@ def run_visual_loop(
             if ser.in_waiting <= 0:
                 break
 
-            sample = c3.parse_dual_imu_csv_line(ser.readline().decode("utf-8", errors="ignore"))
+            sample = detector.parse_dual_imu_csv_line(ser.readline().decode("utf-8", errors="ignore"))
             if sample is None:
                 continue
 
@@ -717,7 +716,7 @@ def run_visual_loop(
                 continue
             runtime["last_update_s"] = now_s
 
-            df = c3.build_window_dataframe(buffer)
+            df = detector.build_window_dataframe(buffer)
             detection = detect_c3_window(df, fs, detection_args, side_model, cpm_calibrator, state_bundle, threshold_gate)
             intervention_result = intervention.update(detection, now_s, args.update_seconds)
             ppb_result = ppb.update(detection, df, fs, args, float(runtime["start_time_ms"]), elapsed_s, player)
@@ -736,13 +735,13 @@ def run_visual_loop(
 
             event_times.append(elapsed_s)
             chewing_values.append(1 if detection["state"] == "chewing" else 0)
-            s2_values.append(S2_STATE_VALUES[intervention_result["intervention_state"]])
+            intervention_values.append(INTERVENTION_STATE_VALUES[intervention_result["intervention_state"]])
             cpm_values.append(float(detection["cpm"]))
             stability_values.append(float(intervention_result["stability"]))
             pan_values.append(pan)
 
             print(
-                f"S3={detection['state']:12s} side={detection['side']:15s} "
+                f"state={detection['state']:12s} side={detection['side']:15s} "
                 f"CPM={float(detection['cpm']):5.1f} "
                 f"stability={intervention_result['stability']:.2f} "
                 f"music={intervention_result['intervention_state']:6s} "
@@ -754,7 +753,7 @@ def run_visual_loop(
             )
 
         if not t_data:
-            return [cpm_line, stability_line, pan_line, chewing_line, s2_line]
+            return [cpm_line, stability_line, pan_line, chewing_line, intervention_line]
 
         detection = runtime["detection"]
         intervention_result = runtime["intervention"]
@@ -763,7 +762,7 @@ def run_visual_loop(
         stability_line.set_data(event_times, stability_values)
         pan_line.set_data(event_times, pan_values)
         chewing_line.set_data(event_times, chewing_values)
-        s2_line.set_data(event_times, s2_values)
+        intervention_line.set_data(event_times, intervention_values)
 
         x_min = t_data[0]
         x_max = max(t_data[-1], x_min + 1.0)
@@ -773,7 +772,7 @@ def run_visual_loop(
             ax_cpm.set_ylim(0, max(180.0, args.fast_cpm_threshold * 1.4, max(cpm_values) * 1.25))
 
         status_text.set_text(
-            f"S3: {detection['state']} | Side: {detection['side']} | CPM: {float(detection['cpm']):.1f} "
+            f"State: {detection['state']} | Side: {detection['side']} | CPM: {float(detection['cpm']):.1f} "
             f"(raw {float(detection.get('raw_cpm', 0.0)):.1f})"
         )
         status_text_2.set_text(
@@ -788,14 +787,14 @@ def run_visual_loop(
             f"Model side: {detection.get('model_side', '-')} ({float(detection.get('model_prob', 0.0)):.2f}) | "
             f"threshold score: {float(detection.get('threshold_score', 0.0)):.2f}"
         )
-        return [cpm_line, stability_line, pan_line, chewing_line, s2_line]
+        return [cpm_line, stability_line, pan_line, chewing_line, intervention_line]
 
     _animation = FuncAnimation(fig, update, interval=30, blit=False, cache_frame_data=False)
     plt.show()
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="S3 RF chewing music intervention system.")
+    parser = argparse.ArgumentParser(description="ChewTune chewing detection and music intervention system.")
     parser.add_argument("--port", default="COM4")
     parser.add_argument("--baud", type=int, default=115200)
     parser.add_argument("--sample-rate", type=int, default=100)
@@ -847,7 +846,7 @@ def main() -> None:
     cpm_calibrator = None
     if not args.disable_cpm_calibrator and args.cpm_calibrator.exists():
         cpm_calibrator = joblib.load(args.cpm_calibrator)
-        print(f"Loaded S3 CPM calibrator: {args.cpm_calibrator}")
+        print(f"Loaded CPM calibrator: {args.cpm_calibrator}")
     else:
         print(f"CPM calibrator is off or missing: {args.cpm_calibrator}")
 
@@ -856,11 +855,11 @@ def main() -> None:
     if not args.disable_chewing_state_model and args.chewing_state_model.exists():
         state_bundle = joblib.load(args.chewing_state_model)
         state_bundle["threshold"] = args.chewing_threshold
-        print(f"Loaded S3 RF chewing state model: {args.chewing_state_model}")
-        print(f"S3 RF chewing threshold: {args.chewing_threshold:.2f}")
+        print(f"Loaded RF chewing state model: {args.chewing_state_model}")
+        print(f"RF chewing threshold: {args.chewing_threshold:.2f}")
     else:
-        threshold_gate = c3.load_threshold_gate(args.chewing_threshold_config)
-        print(f"S3 RF model is off or missing: {args.chewing_state_model}")
+        threshold_gate = detector.load_threshold_gate(args.chewing_threshold_config)
+        print(f"RF model is off or missing: {args.chewing_state_model}")
         print(f"Loaded fallback threshold gate: {args.chewing_threshold_config}")
 
     player = MusicLayerPlayer(args.music_dir, args.active_volume, args.inactive_volume)
@@ -906,7 +905,7 @@ def main() -> None:
         end_debounce_seconds=args.ppb_end_debounce_seconds,
         cues_enabled=not args.disable_ppb_cues,
     )
-    ser = c3.open_serial_port(args.port, args.baud)
+    ser = detector.open_serial_port(args.port, args.baud)
 
     try:
         if args.no_gui:
@@ -920,7 +919,7 @@ def main() -> None:
                 player, intervention, spatial, ppb
             )
     except KeyboardInterrupt:
-        print("Stopping S3.")
+        print("Stopping ChewTune.")
     finally:
         player.stop()
         if ser.is_open:

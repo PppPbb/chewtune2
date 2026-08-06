@@ -16,7 +16,7 @@ DEFAULT_MODEL_OUT = PROJECT_DIR / "models" / "chewing_state_rf.pkl"
 DEFAULT_FEATURES_OUT = PROJECT_DIR / "data" / "chewing_state_features.csv"
 
 sys.path.insert(0, str(THIS_DIR))
-from realtime_dual_mpu6050_detection import RAW_COLUMNS, add_magnitudes, extract_dual_features  # noqa: E402
+from detector import RAW_COLUMNS, add_magnitudes, extract_dual_features  # noqa: E402
 
 
 NON_CHEWING_WORDS = {

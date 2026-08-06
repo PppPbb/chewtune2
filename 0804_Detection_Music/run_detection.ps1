@@ -3,7 +3,7 @@ param(
     [switch]$NoGui
 )
 
-$entryPoint = Join-Path $PSScriptRoot "detection_music_runtime\python\s3_rf_spatial_intervention.py"
+$entryPoint = Join-Path $PSScriptRoot "detection_music_runtime\python\main.py"
 $arguments = @($entryPoint, "--port", $Port)
 if ($NoGui) {
     $arguments += "--no-gui"

@@ -9,7 +9,7 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.widgets import Button
 import numpy as np
 
-from realtime_dual_mpu6050_detection import (
+from detector import (
     RAW_COLUMNS,
     Sample,
     open_serial_port,

@@ -18,7 +18,7 @@ DEFAULT_MODEL_OUT = PROJECT_DIR / "models" / "cpm_calibrator.pkl"
 DEFAULT_FEATURES_OUT = PROJECT_DIR / "data" / "rate_calibration_features.csv"
 
 sys.path.insert(0, str(THIS_DIR))
-from realtime_dual_mpu6050_detection import (  # noqa: E402
+from detector import (  # noqa: E402
     RAW_COLUMNS,
     add_magnitudes,
     classify_dual_window,

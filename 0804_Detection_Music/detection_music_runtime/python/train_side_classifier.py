@@ -19,7 +19,7 @@ DEFAULT_MODEL_OUT = PROJECT_DIR / "models" / "dual_side_cnn.pkl"
 DEFAULT_METADATA_OUT = PROJECT_DIR / "models" / "dual_side_cnn_meta.pkl"
 
 sys.path.insert(0, str(THIS_DIR))
-from realtime_dual_mpu6050_detection import RAW_COLUMNS, SEQUENCE_COLUMNS, add_magnitudes  # noqa: E402
+from detector import RAW_COLUMNS, SEQUENCE_COLUMNS, add_magnitudes  # noqa: E402
 
 
 def normalize_label(value: str) -> str:

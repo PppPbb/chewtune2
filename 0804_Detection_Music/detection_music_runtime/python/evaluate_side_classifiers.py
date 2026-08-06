@@ -13,7 +13,7 @@ from matplotlib.widgets import Button
 import numpy as np
 import pandas as pd
 
-from realtime_dual_mpu6050_detection import (
+from detector import (
     DEFAULT_SIDE_MODEL_PATH,
     RAW_COLUMNS,
     Sample,
